@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aino — Selection Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F5F1E8;
+    --panel:#FBF9F4;
+    --ink:#211D17;
+    --ink-muted:#6B6355;
+    --line:#DAD3C2;
+    --moss:#4B5D45;
+    --moss-dim:#E4E9E0;
+    --amber:#9C6B12;
+    --amber-dim:#F1E6D2;
+    --rust:#A9432B;
+    --rust-dim:#F3E1DC;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    line-height:1.5;
+  }
+  h1,h2,h3,.serif{font-family:'Fraunces',serif;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  #app{display:flex;min-height:100vh;}
+
+  /* ---------- sidebar ---------- */
+  #sidebar{
+    width:270px;flex-shrink:0;
+    background:var(--ink);color:var(--paper);
+    display:flex;flex-direction:column;
+    padding:22px 0;
+    transition:width .2s ease, padding .2s ease;
+    overflow:hidden;
+    white-space:nowrap;
+  }
+  #sidebar.collapsed{width:0;padding-left:0;padding-right:0;}
+  .hamburger-btn{
+    position:fixed;top:14px;left:14px;z-index:1000;
+    width:34px;height:34px;border-radius:4px;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink);font-size:16px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .hamburger-btn:hover{background:#EFEADE;}
+  .brand{padding:44px 20px 18px;border-bottom:1px solid rgba(245,241,232,.15);margin-bottom:14px;}
+  .limits-link{background:none;border:none;color:#B9AF97;font-size:11.5px;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:0;margin-top:8px;font-family:'Inter';}
+  .limits-link:hover{color:var(--paper);}
+  .brand .name{font-family:'Fraunces',serif;font-size:21px;font-weight:600;letter-spacing:.2px;}
+  .brand .tag{font-size:11.5px;color:#C9C2AE;margin-top:3px;}
+  .new-btn{
+    margin:0 20px 16px;padding:10px 12px;
+    background:var(--moss);color:#fff;border:none;border-radius:3px;
+    font-family:'Inter';font-size:13px;font-weight:600;cursor:pointer;
+    text-align:left;
+  }
+  .new-btn:hover{filter:brightness(1.08);}
+  .queue-label{padding:0 20px;font-size:11px;color:#9A907C;margin-bottom:6px;}
+  .queue{flex:1;overflow-y:auto;padding:0 8px;}
+  .queue-item{
+    padding:10px 12px;border-radius:3px;cursor:pointer;margin-bottom:2px;
+    display:flex;flex-direction:column;gap:3px;
+  }
+  .queue-item:hover{background:rgba(245,241,232,.08);}
+  .queue-item.active{background:rgba(245,241,232,.14);}
+  .queue-item .qname{font-size:13px;font-weight:500;color:var(--paper);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .queue-item .qmeta{font-size:11px;color:#A79E89;display:flex;justify-content:space-between;}
+  .queue-empty{padding:14px 20px;font-size:12.5px;color:#8D8471;}
+  .badge{
+    display:inline-block;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:600;
+    font-family:'IBM Plex Mono',monospace;letter-spacing:.3px;
+  }
+  .badge.SELECT{background:var(--moss-dim);color:var(--moss);}
+  .badge.TEST{background:var(--amber-dim);color:var(--amber);}
+  .badge.HOLD{background:#EDE9DD;color:#8A806B;}
+  .badge.REJECT{background:var(--rust-dim);color:var(--rust);}
+
+  /* ---------- main ---------- */
+  #main{flex:1;overflow-y:auto;padding:42px 48px 90px;}
+  .wrap{max-width:840px;margin:0 auto;}
+  .case-header{margin-bottom:26px;}
+  .case-header h1{font-size:26px;margin:0 0 4px;font-weight:600;}
+  .case-header .sub{color:var(--ink-muted);font-size:13.5px;}
+  .product-name-input{font-family:'Fraunces',serif;font-size:26px;font-weight:600;border:none;border-bottom:1px solid transparent;background:transparent;padding:0 0 2px;margin:0 0 4px;color:var(--ink);width:100%;}
+  .product-name-input::placeholder{color:var(--ink-muted);opacity:.6;}
+  .product-name-input:focus{outline:none;border-bottom:1px solid var(--line);}
+
+  .stepper{display:flex;gap:0;margin-bottom:34px;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--panel);}
+  .step{flex:1;padding:11px 14px;font-size:12px;color:var(--ink-muted);border-right:1px solid var(--line);position:relative;}
+  .step:last-child{border-right:none;}
+  .step .n{font-family:'IBM Plex Mono';font-size:11px;margin-right:6px;}
+  .step.done{color:var(--moss);background:var(--moss-dim);}
+  .step.active{color:var(--ink);font-weight:600;}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:22px 24px;margin-bottom:22px;}
+  .panel h2{font-size:15px;margin:0 0 14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+  label{display:block;font-size:12px;color:var(--ink-muted);margin-bottom:5px;margin-top:14px;}
+  label:first-child{margin-top:0;}
+  input[type=text],input[type=number],select,textarea{
+    width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:3px;
+    font-family:'Inter';font-size:13.5px;background:#fff;color:var(--ink);
+  }
+  textarea{min-height:170px;resize:vertical;font-family:'IBM Plex Mono';font-size:12.5px;line-height:1.55;}
+  .row{display:flex;gap:14px;}
+  .row > div{flex:1;}
+  .hint{font-size:11.5px;color:var(--ink-muted);margin-top:4px;}
+  .run-btn{
+    margin-top:20px;padding:11px 20px;background:var(--ink);color:var(--paper);border:none;
+    border-radius:3px;font-family:'Inter';font-weight:600;font-size:13.5px;cursor:pointer;
+  }
+  .run-btn:disabled{opacity:.5;cursor:default;}
+  .run-btn:hover:not(:disabled){background:#3a342a;}
+
+  .decision-banner{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:20px 24px;border-radius:4px;margin-bottom:22px;border:1px solid var(--line);
+  }
+  .decision-banner.SELECT{background:var(--moss-dim);border-color:var(--moss);}
+  .decision-banner.TEST{background:var(--amber-dim);border-color:var(--amber);}
+  .decision-banner.HOLD{background:#EDE9DD;border-color:#B9AF97;}
+  .decision-banner.REJECT{background:var(--rust-dim);border-color:var(--rust);}
+  .decision-banner .status{font-family:'Fraunces',serif;font-size:28px;font-weight:600;}
+  .decision-banner .score{font-family:'IBM Plex Mono';font-size:22px;}
+  .decision-banner .reason{font-size:12.5px;color:var(--ink-muted);margin-top:4px;max-width:420px;}
+
+  .signal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .signal-card{border:1px solid var(--line);border-radius:4px;padding:12px 14px;background:#fff;}
+  .signal-card .stitle{font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:baseline;}
+  .signal-card .sval{font-family:'IBM Plex Mono';font-size:12px;}
+  .signal-card .sval.pos{color:var(--moss);}
+  .signal-card .sval.neg{color:var(--rust);}
+  .signal-card .sval.zero{color:var(--ink-muted);}
+  .signal-card .sinterp{font-size:12px;color:var(--ink-muted);margin-top:6px;line-height:1.4;}
+  .signal-card .squote{font-size:11.5px;font-style:italic;color:#8A8270;margin-top:5px;border-left:2px solid var(--line);padding-left:8px;}
+  .signal-card.unscorable{opacity:.5;}
+  .conf-bar{height:3px;background:var(--line);border-radius:2px;margin-top:8px;overflow:hidden;}
+  .conf-bar > div{height:100%;background:var(--ink);}
+
+  .score-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .score-table td{padding:7px 0;border-bottom:1px solid var(--line);}
+  .score-table td:last-child{text-align:right;font-family:'IBM Plex Mono';}
+  .score-table tr:last-child td{border-bottom:none;font-weight:600;}
+  .score-table .weight{color:var(--ink-muted);font-size:11.5px;}
+
+  .flag{
+    display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:8px 10px;
+    border-radius:3px;margin-top:8px;background:var(--rust-dim);color:var(--rust);
+  }
+  .flag.amber{background:var(--amber-dim);color:var(--amber);}
+
+  .cbrow{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;}
+  .cbrow input{width:auto;}
+
+  .empty-state{padding:70px 20px;text-align:center;color:var(--ink-muted);}
+  .empty-state h2{font-size:19px;color:var(--ink);margin-bottom:8px;}
+  .empty-state .icon{font-size:34px;margin-bottom:14px;}
+
+  .spinner{
+    display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.35);
+    border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:-2px;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .error-box{background:var(--rust-dim);color:var(--rust);padding:12px 14px;border-radius:3px;font-size:12.5px;margin-top:14px;}
+  .section-note{font-size:11.5px;color:var(--ink-muted);margin-top:-6px;margin-bottom:14px;}
+  .foot-actions{display:flex;gap:10px;margin-top:6px;}
+  .ghost-btn{background:none;border:1px solid var(--line);padding:8px 14px;border-radius:3px;font-size:12.5px;cursor:pointer;color:var(--ink);}
+  .ghost-btn:hover{background:#EFEADE;}
+  .evidence-card{border:1px solid var(--line);border-radius:4px;padding:14px 16px;background:#fff;margin-bottom:12px;}
+  .evidence-card.has-error{border-color:var(--rust);background:var(--rust-dim);}
+  .ev-error{color:var(--rust);font-size:12px;font-weight:600;margin-bottom:10px;display:flex;gap:6px;align-items:flex-start;}
+  .or-divider{display:flex;align-items:center;gap:10px;margin:12px 0 4px;color:var(--ink-muted);font-size:11px;}
+  .or-divider::before,.or-divider::after{content:"";flex:1;height:1px;background:var(--line);}
+  .paste-zone{border:1px dashed var(--line);border-radius:4px;padding:16px;text-align:center;cursor:text;background:#FBFAF6;}
+  .paste-zone:focus{outline:2px solid var(--moss);outline-offset:1px;}
+  .paste-zone.drag-over{border-color:var(--moss);background:var(--moss-dim);}
+  .paste-hint{font-size:12px;color:var(--ink-muted);}
+  .paste-preview{max-width:100%;max-height:160px;border-radius:3px;display:block;margin:0 auto 10px;}
+  .paste-note{font-size:11.5px;color:var(--amber);margin-top:6px;}
+  .exec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px 0;}
+  .exec-stat{padding:4px 14px;border-left:1px solid var(--line);}
+  .exec-stat:first-child{border-left:none;padding-left:0;}
+  .exec-label{font-size:11px;color:var(--ink-muted);margin-bottom:4px;}
+  .exec-val{font-size:19px;font-weight:500;}
+  .evidence-card .row{align-items:flex-end;}
+  .ev-tag{display:inline-block;font-family:'IBM Plex Mono';font-size:10.5px;color:var(--ink-muted);background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:1px 8px;margin-right:6px;margin-top:4px;}
+  .conflict-flag{font-size:10.5px;font-family:'IBM Plex Mono';padding:1px 7px;border-radius:20px;margin-left:8px;}
+  .conflict-flag.LOW{background:var(--amber-dim);color:var(--amber);}
+  .conflict-flag.MEDIUM,.conflict-flag.HIGH{background:var(--rust-dim);color:var(--rust);}
+</style>
+</head>
+<body>
+<div id="passGate" style="position:fixed;inset:0;background:var(--paper);display:flex;align-items:center;justify-content:center;z-index:999;">
+  <div style="max-width:320px;width:100%;padding:28px;background:var(--panel);border:1px solid var(--line);border-radius:6px;">
+    <div class="serif" style="font-size:20px;margin-bottom:6px;">Aino Selection Console</div>
+    <div class="section-note" style="margin-bottom:14px;">Enter the access password to continue.</div>
+    <input type="password" id="passInput" placeholder="Password" autofocus>
+    <button class="run-btn" id="passSubmit" style="width:100%;margin-top:10px;">Enter</button>
+    <div id="passErr" style="color:var(--rust);font-size:12px;margin-top:8px;"></div>
+  </div>
+</div>
+<div id="app" style="display:none;">
+  <button class="hamburger-btn" id="sidebarToggle" type="button" aria-label="Toggle sidebar">☰</button>
+  <div id="sidebar">
+    <div class="brand">
+      <div class="name">Aino</div>
+      <div class="tag">Selection Engine · v2.0</div>
+      <button class="limits-link" id="limitsLink" type="button">Groq usage limits</button>
+    </div>
+    <button class="new-btn" id="newBtn">+ New assessment</button>
+    <div class="queue-label">Product queue</div>
+    <div class="queue" id="queue"></div>
+  </div>
+  <div id="limitsModal" style="display:none;position:fixed;inset:0;background:rgba(33,29,23,.55);z-index:998;align-items:center;justify-content:center;">
+    <div style="max-width:460px;width:92%;max-height:82vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:24px 26px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="serif" style="font-size:18px;">Groq usage limits</div>
+        <button class="ghost-btn" id="limitsClose" type="button" style="padding:4px 10px;">✕</button>
+      </div>
+      <div class="section-note" style="margin-top:6px;">Free tier · model: <span class="mono">qwen/qwen3.8-27b</span></div>
+      <table class="score-table" style="margin-top:10px;">
+        <tr><td>Requests / minute</td><td>30</td></tr>
+        <tr><td>Requests / day</td><td>1,000</td></tr>
+        <tr><td>Tokens / minute</td><td>8,000</td></tr>
+        <tr><td>Tokens / day</td><td>200,000</td></tr>
+      </table>
+      <div class="section-note" style="margin-top:14px;">The token limits are the real ceiling — each image attached costs roughly 2,048 tokens on top of the prompt and response.</div>
+      <ul style="font-size:12.5px;color:var(--ink-muted);padding-left:18px;margin:8px 0 0;line-height:1.7;">
+        <li>Text-only assessment: roughly 2–3 per minute, ~60–100 per day</li>
+        <li>With 1–2 images attached: roughly 1 per minute, ~30–50 per day</li>
+      </ul>
+      <div class="section-note" style="margin-top:14px;">Hitting a limit returns a 429 (temporary) — wait for the per-minute or daily reset, not an app error. Current numbers can change; the up-to-date figures for this account are always at <a href="https://console.groq.com/settings/limits" target="_blank" rel="noopener">console.groq.com/settings/limits</a>.</div>
+    </div>
+  </div>
+  <div id="main">
+    <div class="wrap" id="wrap"></div>
+  </div>
+</div>
+
+<script>
+/* ============================= ACCESS GATE + BACKEND BRIDGE ============================= */
+const APP_PASS_KEY = 'ainoAppPassword';
+function getPassword(){ return sessionStorage.getItem(APP_PASS_KEY) || ''; }
+async function apiStorage(action, key, value, prefix){
+  const resp = await fetch('/api/storage', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-app-password':getPassword()},
+    body: JSON.stringify({action, key, value, prefix})
+  });
+  if(resp.status===401){ showPassGate('Incorrect password.'); throw new Error('Unauthorized'); }
+  return resp.json();
+}
+function showPassGate(err){
+  document.getElementById('app').style.display='none';
+  document.getElementById('passGate').style.display='flex';
+  document.getElementById('passErr').textContent = err||'';
+  sessionStorage.removeItem(APP_PASS_KEY);
+}
+async function tryUnlock(pw){
+  sessionStorage.setItem(APP_PASS_KEY, pw);
+  const resp = await fetch('/api/storage', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-app-password':pw},
+    body: JSON.stringify({action:'get', key:'product-index'})
+  });
+  if(resp.status===401){
+    document.getElementById('passErr').textContent = 'Incorrect password.';
+    sessionStorage.removeItem(APP_PASS_KEY);
+    return false;
+  }
+  document.getElementById('passGate').style.display='none';
+  document.getElementById('app').style.display='flex';
+  return true;
+}
+document.getElementById('passSubmit').addEventListener('click', ()=>{
+  tryUnlock(document.getElementById('passInput').value).then(ok=>{ if(ok) init(); });
+});
+document.getElementById('passInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') document.getElementById('passSubmit').click();
+});
+document.getElementById('limitsLink').addEventListener('click', ()=>{
+  document.getElementById('limitsModal').style.display='flex';
+});
+document.getElementById('limitsClose').addEventListener('click', ()=>{
+  document.getElementById('limitsModal').style.display='none';
+});
+document.getElementById('limitsModal').addEventListener('click', (e)=>{
+  if(e.target.id==='limitsModal') document.getElementById('limitsModal').style.display='none';
+});
+document.getElementById('sidebarToggle').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.toggle('collapsed');
+});
+if(getPassword()){
+  tryUnlock(getPassword()).then(ok=>{ if(ok) init(); });
+}
+/* ============================= CONFIGURATION (v1.0.0, per spec §3.9) ============================= */
+const CONFIG = {
+  version: "config_v1.0.0",
+  va_signal_weights: {
+    animal_safety:.07, human_safety:.09, health_wellbeing:.14, comfort:.12,
+    cleanliness:.10, easy_maintenance:.09, convenience:.08, interaction:.08,
+    agency:.07, organisation:.05, space_efficiency:.05, aesthetics:.04
+  },
+  dna_composition: {
+    human_safety:{human_safety:1}, animal_safety:{animal_safety:1},
+    cleanliness:{cleanliness:1}, aesthetics:{aesthetics:1},
+    pet_satisfaction:{health_wellbeing:.34, comfort:.33, interaction_share:.33},
+    human_satisfaction:{convenience:.34, agency:.33, interaction_share:.33},
+    orderliness:{organisation:.5, space_efficiency:.5},
+    interaction_split:{pet_satisfaction:.5, human_satisfaction:.5}
+  },
+  dna_weights:{human_satisfaction:.15, pet_satisfaction:.15, human_safety:.20, animal_safety:.25, cleanliness:.10, aesthetics:.075, orderliness:.075},
+  dna_thresholds:{human_safety:80, animal_safety:85, cleanliness:60, pet_satisfaction:50, human_satisfaction:50, orderliness:55, aesthetics:50, overall:70},
+  coverage_thresholds:{full:80, good:60, limited:40},
+  confidence_thresholds:{hold_below:.40},
+  selection_weights:{va:.3529, market_demand:.2118, logistics:.1412, demonstrable_value:.1176, return_sizing:.0941, seasonality:.0824},
+  decision_thresholds:{select:80, test:65, hold:50}
+};
+const SIGNAL_TYPES = ["animal_safety","human_safety","health_wellbeing","comfort","cleanliness","easy_maintenance","convenience","interaction","agency","organisation","space_efficiency","aesthetics"];
+const SIGNAL_LABELS = {animal_safety:"Animal safety",human_safety:"Human safety",health_wellbeing:"Health & wellbeing",comfort:"Comfort",cleanliness:"Cleanliness",easy_maintenance:"Easy maintenance",convenience:"Convenience",interaction:"Interaction",agency:"Agency",organisation:"Organisation",space_efficiency:"Space efficiency",aesthetics:"Aesthetics"};
+const SOURCE_TYPES = [
+  {v:"supplier_page", l:"Supplier / brand page", ev:"CLAIMED"},
+  {v:"marketplace", l:"Marketplace listing", ev:"CLAIMED"},
+  {v:"customer_review", l:"Customer reviews", ev:"REPORTED"},
+  {v:"internal_test", l:"Internal test notes", ev:"OBSERVED"},
+  {v:"image", l:"Image (URL)", ev:"OBSERVED"},
+  {v:"video", l:"Video (URL)", ev:"INFERRED"},
+];
+
+/* ============================= STATE ============================= */
+let state = { products: [], currentId: null };
+let inflight = false;
+
+/* ============================= STORAGE (via backend) ============================= */
+async function loadIndex(){
+  try{
+    const r = await apiStorage('get','product-index');
+    return r.value ? JSON.parse(r.value) : [];
+  }catch(e){ return []; }
+}
+async function saveIndex(idx){
+  await apiStorage('set','product-index', JSON.stringify(idx));
+}
+async function saveProduct(p){
+  const evidencesForStorage = (p.evidences||[]).map(e=>{
+    const { imageData, imageMediaType, ...rest } = e;
+    if(imageData) rest.hadPastedImage = true;
+    return rest;
+  });
+  const toSave = Object.assign({}, p, {evidences: evidencesForStorage});
+  await apiStorage('set','product:'+p.id, JSON.stringify(toSave));
+}
+async function loadProduct(id){
+  try{
+    const r = await apiStorage('get','product:'+id);
+    return r.value ? JSON.parse(r.value) : null;
+  }catch(e){ return null; }
+}
+
+/* ============================= CALCULATION ENGINE (deterministic, per spec §4-8) ============================= */
+function normalizedSignalScore(sig){
+  if(!sig || !sig.scorable) return null;
+  return ((sig.polarity*sig.strength)+4)/8*100;
+}
+function computeVA(signals){
+  let coveredWeight=0, totalWeight=0, vaRaw=0;
+  for(const t of SIGNAL_TYPES){
+    const w = CONFIG.va_signal_weights[t];
+    totalWeight += w;
+    const s = signals[t];
+    if(s && s.scorable){
+      coveredWeight += w;
+      vaRaw += w * (s.polarity*s.strength);
+    }
+  }
+  const maxCovered = 4*coveredWeight, minCovered=-4*coveredWeight;
+  const va = coveredWeight>0 ? ((vaRaw-minCovered)/(maxCovered-minCovered))*100 : null;
+  const coverage = (coveredWeight/totalWeight)*100;
+  let coverageStatus = "INSUFFICIENT";
+  if(coverage>=CONFIG.coverage_thresholds.full) coverageStatus="FULL";
+  else if(coverage>=CONFIG.coverage_thresholds.good) coverageStatus="GOOD";
+  else if(coverage>=CONFIG.coverage_thresholds.limited) coverageStatus="LIMITED";
+  const scorableConfs = SIGNAL_TYPES.filter(t=>signals[t]&&signals[t].scorable).map(t=>signals[t].confidence);
+  const confidence = scorableConfs.length ? scorableConfs.reduce((a,b)=>a+b,0)/scorableConfs.length : 0;
+  return {score:va, coverage, coverageStatus, confidence, coveredWeight, totalWeight};
+}
+function computeDNA(signals){
+  const dc = CONFIG.dna_composition;
+  const interactionScore = normalizedSignalScore(signals['interaction']);
+  const dims = {};
+  // direct 1:1 dimensions
+  dims.human_safety = normalizedSignalScore(signals['human_safety']);
+  dims.animal_safety = normalizedSignalScore(signals['animal_safety']);
+  dims.cleanliness = normalizedSignalScore(signals['cleanliness']);
+  dims.aesthetics = normalizedSignalScore(signals['aesthetics']);
+  // orderliness
+  {
+    const parts=[['organisation',dc.orderliness.organisation],['space_efficiency',dc.orderliness.space_efficiency]];
+    let sum=0,wsum=0;
+    parts.forEach(([t,w])=>{const v=normalizedSignalScore(signals[t]); if(v!==null){sum+=w*v;wsum+=w;}});
+    dims.orderliness = wsum>0 ? sum/wsum : null;
+  }
+  // pet_satisfaction: health_wellbeing .34, comfort .33, interaction_share .33 (interaction * split .5)
+  {
+    const compVal = interactionScore===null?null:interactionScore*dc.interaction_split.pet_satisfaction;
+    const parts=[['health_wellbeing',dc.pet_satisfaction.health_wellbeing,normalizedSignalScore(signals['health_wellbeing'])],
+                 ['comfort',dc.pet_satisfaction.comfort,normalizedSignalScore(signals['comfort'])],
+                 ['interaction_share',dc.pet_satisfaction.interaction_share,compVal]];
+    let sum=0,wsum=0;
+    parts.forEach(([_,w,v])=>{if(v!==null){sum+=w*v;wsum+=w;}});
+    dims.pet_satisfaction = wsum>0 ? sum/wsum : null;
+  }
+  // human_satisfaction: convenience .34, agency .33, interaction_share .33
+  {
+    const compVal = interactionScore===null?null:interactionScore*dc.interaction_split.human_satisfaction;
+    const parts=[['convenience',dc.human_satisfaction.convenience,normalizedSignalScore(signals['convenience'])],
+                 ['agency',dc.human_satisfaction.agency,normalizedSignalScore(signals['agency'])],
+                 ['interaction_share',dc.human_satisfaction.interaction_share,compVal]];
+    let sum=0,wsum=0;
+    parts.forEach(([_,w,v])=>{if(v!==null){sum+=w*v;wsum+=w;}});
+    dims.human_satisfaction = wsum>0 ? sum/wsum : null;
+  }
+  // overall A_D — renormalize over dims that are non-null
+  let sum=0,wsum=0;
+  for(const d in CONFIG.dna_weights){
+    if(dims[d]!==null && dims[d]!==undefined){ sum += CONFIG.dna_weights[d]*dims[d]; wsum += CONFIG.dna_weights[d]; }
+  }
+  const overall = wsum>0 ? sum/wsum : null;
+  const partial = wsum < 1 - 1e-9;
+  return {dims, overall, partial};
+}
+function computeGate(signals, va, dna, hazardFlags){
+  const failReasons=[];
+  // 1. hard safety reject triggers
+  const as = signals['animal_safety'], hs = signals['human_safety'];
+  const hardHazard = (as && as.scorable && as.polarity<0 && as.strength>=3) ||
+                      (hs && hs.scorable && hs.polarity<0 && hs.strength>=3) ||
+                      hazardFlags.verified_injury || hazardFlags.manufacturer_hazard_warning || hazardFlags.structural_failure_hazard;
+  if(hardHazard){
+    return {gate_status:"REJECT", reason_code:"CRITICAL_SAFETY_HAZARD", critical_flags:["hard_safety_trigger"]};
+  }
+  // 2. evidence sufficiency
+  if(va.coverage < CONFIG.coverage_thresholds.limited || va.confidence < CONFIG.confidence_thresholds.hold_below){
+    return {gate_status:"HOLD", reason_code:"INSUFFICIENT_EVIDENCE", critical_flags:[]};
+  }
+  // 3. DNA thresholds
+  for(const d in CONFIG.dna_thresholds){
+    if(d==='overall') continue;
+    const score = dna.dims[d];
+    if(score===null){ failReasons.push(d.toUpperCase()+"_NO_EVIDENCE"); continue; }
+    if(score < CONFIG.dna_thresholds[d]) failReasons.push(d.toUpperCase()+"_THRESHOLD_FAILED");
+  }
+  if(dna.overall===null || dna.overall < CONFIG.dna_thresholds.overall) failReasons.push("OVERALL_DNA_THRESHOLD_FAILED");
+  if(failReasons.length){
+    return {gate_status:"REJECT", reason_code:failReasons.join(", "), critical_flags:failReasons};
+  }
+  return {gate_status:"PASS", reason_code:"", critical_flags:[]};
+}
+function commercialNum(estimates, key){
+  const v = estimates ? estimates[key] : null;
+  return typeof v === 'number' ? Math.max(0, Math.min(100, v)) : 0;
+}
+function computeCommercial(estimates){
+  const marketDemand = commercialNum(estimates, 'market_demand');
+  const logistics = commercialNum(estimates, 'logistics');
+  const returnSizing = commercialNum(estimates, 'return_sizing');
+  const seasonality = commercialNum(estimates, 'seasonality');
+  const demonstrableValue = commercialNum(estimates, 'demonstrable_value');
+  return {marketDemand, logistics, returnSizing, seasonality, demonstrableValue};
+}
+function computeSelectionScore(va, comm){
+  const w = CONFIG.selection_weights;
+  const vaScore = va.score===null?0:va.score;
+  const s = w.va*vaScore + w.market_demand*comm.marketDemand +
+            w.logistics*comm.logistics + w.demonstrable_value*comm.demonstrableValue +
+            w.return_sizing*comm.returnSizing + w.seasonality*comm.seasonality;
+  return s;
+}
+function decisionFromScore(score, gate){
+  if(gate.gate_status!=="PASS") return gate.gate_status; // HOLD or REJECT overrides
+  const t = CONFIG.decision_thresholds;
+  if(score>=t.select) return "SELECT";
+  if(score>=t.test) return "TEST";
+  if(score>=t.hold) return "HOLD";
+  return "REJECT";
+}
+
+/* ============================= AI EXTRACTION (Anthropic API, signal_extraction_v1) ============================= */
+function buildMessageContent(evidences){
+  const header = `You are the signal_extraction_v1 + signal_aggregation_v1 modules of a deterministic product-selection pipeline for a pet-products brand ("Aino Home"). You extract structured evidence ONLY from the supplied evidence items below, then aggregate them into one final view per signal. You never invent product properties, never upgrade a claim's certainty (e.g. never turn CLAIMED into VERIFIED just because it sounds plausible), and never average contradictory evidence into a false neutral — instead flag the conflict.
+
+You will be given ${evidences.length} numbered evidence item(s), each tagged with its source_type and evidence_type. Some are pasted text, some are images (shown to you directly — inspect them visually), some are videos (referenced by URL only — you cannot see video frames, so treat video evidence as only whatever transcript/description text was supplied alongside it).
+
+Extract exactly these 12 signal types: animal_safety, human_safety, health_wellbeing, comfort, cleanliness, easy_maintenance, convenience, interaction, agency, organisation, space_efficiency, aesthetics.
+
+Be concise — this output has a strict token budget. For each signal type, aggregate across ALL relevant evidence items and decide:
+- scorable: true only if at least one evidence item gives usable evidence (positive, negative, or deliberate neutral). Unknown must never be scored as neutral.
+- polarity: -1, 0, or 1
+- strength: 0-4 (0=no signal, 4=very strong evidence)
+- confidence: 0-1
+- conflict_level: "NONE" | "LOW" | "MEDIUM" | "HIGH" — HIGH if evidence items disagree materially on this signal
+- interpretation: a very short phrase (<=8 words), not a full sentence
+- evidence_quote: a short (<=10 words) paraphrase supporting this, or "" if not scorable
+- evidence_refs: array of the evidence item numbers (1-based) that informed this signal
+
+Also extract:
+- product: {name, category, supplier_name, selling_price (number or null), currency (string or null)}
+- hazard_flags: {verified_injury: bool, manufacturer_hazard_warning: bool, structural_failure_hazard: bool} — true only if explicitly stated in evidence
+- commercial_estimates: your best-effort ESTIMATE (not verified data) of each category as a single 0-100 score — do not break these into sub-components, just give one number per category:
+  market_demand (0-100), logistics (0-100), return_sizing (0-100), seasonality (0-100), demonstrable_value (0-100)
+- commercial_note: one short phrase (<=12 words) flagging what's most uncertain in the commercial estimate.
+
+Respond with ONLY valid JSON, no markdown fences, no preamble, no extra whitespace, matching this shape exactly:
+{"product":{"name":"","category":"","supplier_name":"","selling_price":null,"currency":null},
+"signals":{"animal_safety":{"scorable":true,"polarity":0,"strength":0,"confidence":0,"conflict_level":"NONE","interpretation":"","evidence_quote":"","evidence_refs":[]}, ... (all 12 keys)},
+"hazard_flags":{"verified_injury":false,"manufacturer_hazard_warning":false,"structural_failure_hazard":false},
+"commercial_estimates":{"market_demand":0,"logistics":0,"return_sizing":0,"seasonality":0,"demonstrable_value":0},
+"commercial_note":""}
+
+Evidence items follow below, numbered in order.`;
+
+  const content = [{type:"text", text: header}];
+  evidences.forEach((ev, i)=>{
+    const idx = i+1;
+    const meta = SOURCE_TYPES.find(s=>s.v===ev.sourceType) || SOURCE_TYPES[0];
+    if(ev.sourceType === 'image'){
+      content.push({type:"text", text:`EVIDENCE ${idx} — source_type: image, evidence_type: ${meta.ev}.${ev.text?` Caption/notes: "${ev.text}"`:''} The image is attached below:`});
+      if(ev.imageData){
+        const b64 = ev.imageData.split(',')[1] || '';
+        const mediaType = ev.imageMediaType || (ev.imageData.match(/^data:([^;]+);/)||[])[1] || 'image/png';
+        content.push({type:"image", source:{type:"base64", media_type: mediaType, data: b64}});
+      } else if(ev.url){
+        content.push({type:"image", source:{type:"url", url: ev.url}});
+      } else {
+        content.push({type:"text", text:`(no image URL or pasted image was provided for evidence ${idx} — treat as not scorable)`});
+      }
+    } else if(ev.sourceType === 'video'){
+      content.push({type:"text", text:`EVIDENCE ${idx} — source_type: video, evidence_type: ${meta.ev}. Video URL (frames not visually analyzed): ${ev.url||'(none)'}. User-provided transcript/description:\n"""${ev.text||'(none provided — treat this evidence item as not scorable)'}"""`});
+    } else {
+      content.push({type:"text", text:`EVIDENCE ${idx} — source_type: ${ev.sourceType}, evidence_type: ${meta.ev}. Content:\n"""${ev.text||''}"""`});
+    }
+  });
+  return content;
+}
+async function safeParseResponse(resp){
+  const raw = await resp.text();
+  try{
+    return JSON.parse(raw);
+  }catch(e){
+    if(resp.status===413 || /request entity too large/i.test(raw)){
+      throw new Error('This evidence is too large to submit. If it includes a pasted image, try a smaller photo or crop it, then retry.');
+    }
+    if(!resp.ok){
+      throw new Error(`Server error (${resp.status}): ${raw.slice(0,150) || 'no response body'}`);
+    }
+    throw new Error('Server returned an unexpected (non-JSON) response.');
+  }
+}
+async function callClaudeRaw(content, maxTokens){
+  const resp = await fetch("/api/assess", {
+    method:"POST",
+    headers:{"Content-Type":"application/json", "x-app-password": getPassword()},
+    body: JSON.stringify({
+      model:"claude-sonnet-4-6",
+      max_tokens: maxTokens,
+      messages:[{role:"user", content: content}]
+    })
+  });
+  if(resp.status===401){ showPassGate('Session expired — please re-enter the password.'); throw new Error('Unauthorized'); }
+  const data = await safeParseResponse(resp);
+  if(data.error){
+    const msg = data.error.message || "API error";
+    if(/tokens per minute|requests per minute|rate.?limit/i.test(msg)){
+      throw new Error("Groq's free-tier rate limit was hit for this minute — this isn't a bug, just wait ~60 seconds and click Run again. (" + msg + ")");
+    }
+    throw new Error(msg);
+  }
+  return data;
+}
+function cleanJsonText(text){
+  let t = text.replace(/```json|```/g,"").trim();
+  const start = t.indexOf('{');
+  const end = t.lastIndexOf('}');
+  if(start !== -1 && end !== -1 && end > start){
+    t = t.slice(start, end+1);
+  }
+  return t;
+}
+async function callClaude(content, maxTokens=900){
+  const data = await callClaudeRaw(content, maxTokens);
+  const text = data.content.map(b=>b.text||"").join("");
+  try{
+    return JSON.parse(cleanJsonText(text));
+  }catch(e){
+    // The model occasionally produces near-valid JSON with a stray quote or
+    // formatting slip. Retry once with an explicit strict-JSON reminder
+    // before surfacing an error to the user.
+    const retryContent = [...content, {type:"text", text:"Your previous response was not valid JSON. Return ONLY strict, valid, minified JSON on a single line — no markdown fences, no line breaks, no trailing commas, and escape every quote character inside string values as \\\". Output nothing else, no explanation."}];
+    const data2 = await callClaudeRaw(retryContent, maxTokens);
+    const text2 = data2.content.map(b=>b.text||"").join("");
+    try{
+      return JSON.parse(cleanJsonText(text2));
+    }catch(e2){
+      throw new Error("The model's response wasn't valid JSON, even after retrying automatically. Try shortening the evidence text or using fewer sources at once, then run again.");
+    }
+  }
+}
+async function testImageUrl(url){
+  try{
+    const resp = await fetch("/api/assess", {
+      method:"POST",
+      headers:{"Content-Type":"application/json", "x-app-password": getPassword()},
+      body: JSON.stringify({
+        model:"claude-sonnet-4-6",
+        max_tokens: 10,
+        messages:[{role:"user", content:[{type:"text",text:"Reply with just the word OK."},{type:"image",source:{type:"url",url}}]}]
+      })
+    });
+    const data = await safeParseResponse(resp);
+    if(data.error) return data.error.message || "Unknown error";
+    return null;
+  }catch(e){ return e.message || String(e); }
+}
+function extractUrlFromError(msg){
+  const m = msg.match(/https?:\/\/[^\s"')]+/);
+  return m ? m[0].replace(/[.,;]+$/,'') : null;
+}
+function friendlyImageError(msg){
+  if(/robots\.txt/i.test(msg)) return "Blocked by this site's robots.txt — the host doesn't allow automated fetching of this image. Try a different, directly-linked image URL (e.g. a CDN or media-hosting link) or paste a description instead.";
+  if(/(timeout|timed out)/i.test(msg)) return "The image took too long to load from this URL. Try a different link.";
+  if(/(404|not found)/i.test(msg)) return "This image URL doesn't seem to resolve (not found). Double-check the link.";
+  return "Couldn't retrieve this image: " + msg;
+}
+async function diagnoseAndFlagEvidence(p, msg){
+  const imageEvidences = p.evidences.map((e,i)=>({e,i})).filter(x=>x.e.sourceType==='image' && !x.e.imageData && x.e.url && x.e.url.trim());
+  if(!imageEvidences.length) return false;
+  const isFetchIssue = /robots\.txt|could not retrieve|unable to (fetch|access|retrieve)|disallowed|fetch (the )?url|error (fetching|retrieving)|invalid image|not (be )?access|failed to (fetch|download)/i.test(msg);
+  if(!isFetchIssue) return false;
+
+  const directUrl = extractUrlFromError(msg);
+  if(directUrl){
+    const hit = imageEvidences.find(x => directUrl.indexOf(x.e.url) !== -1 || x.e.url.indexOf(directUrl) !== -1);
+    if(hit){ hit.e.error = friendlyImageError(msg); return true; }
+  }
+  if(imageEvidences.length === 1){
+    imageEvidences[0].e.error = friendlyImageError(msg);
+    return true;
+  }
+  // ambiguous with multiple image URLs — test each individually to pinpoint the offender(s)
+  for(const {e} of imageEvidences){
+    const err = await testImageUrl(e.url);
+    if(err) e.error = friendlyImageError(err);
+  }
+  return true;
+}
+function buildErrorBanner(msg, p){
+  const flagged = p.evidences.filter(e=>e.error);
+  if(flagged.length){
+    return `<div class="error-box">The assessment couldn't complete — ${flagged.length} evidence item${flagged.length>1?'s':''} above ${flagged.length>1?'are':'is'} highlighted in red. Fix or remove ${flagged.length>1?'them':'it'} and re-run.</div>`;
+  }
+  return `<div class="error-box">Assessment failed: ${escapeHtml(msg)}. Try again.</div>`;
+}
+
+/* ============================= RENDER ============================= */
+function uid(){ return 'p_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+function renderSidebar(){
+  const q = document.getElementById('queue');
+  if(!state.products.length){
+    q.innerHTML = `<div class="queue-empty">No products assessed yet.</div>`;
+    return;
+  }
+  q.innerHTML = state.products.slice().sort((a,b)=>b.updated_at-a.updated_at).map(p=>`
+    <div class="queue-item ${p.id===state.currentId?'active':''}" data-id="${p.id}">
+      <div class="qname">${escapeHtml(p.name||'Untitled product')}</div>
+      <div class="qmeta"><span>${p.score!==null&&p.score!==undefined?p.score.toFixed(1):'—'}</span>${p.decision?`<span class="badge ${p.decision}">${p.decision}</span>`:'<span></span>'}</div>
+    </div>`).join('');
+  q.querySelectorAll('.queue-item').forEach(el=>{
+    el.addEventListener('click', ()=> openProduct(el.dataset.id));
+  });
+}
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// Downscales/re-compresses a pasted or dropped image before it's ever
+// base64-encoded, so a large phone photo doesn't blow past the server's
+// request-size limit (Vercel serverless functions reject oversized bodies
+// with a plain-text "Request Entity Too Large" error).
+function compressImageFile(blob, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onload = ()=>{
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if(width > maxDim || height > maxDim){
+        if(width >= height){ height = Math.round(height * (maxDim/width)); width = maxDim; }
+        else { width = Math.round(width * (maxDim/height)); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve({ dataUrl, mimeType: 'image/jpeg' });
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('Could not load image for compression')); };
+    img.src = url;
+  });
+}
+
+function renderConsole(product){
+  const wrap = document.getElementById('wrap');
+  const p = product;
+  const doneIdx = p.assessed ? 6 : (inflight ? -1 : 0);
+  wrap.innerHTML = `
+    <div class="case-header">
+      <input type="text" id="productNameInput" class="product-name-input" value="${escapeHtml(p.name||'')}" placeholder="Untitled product">
+      <div class="sub">${p.assessed ? p.evidences.length+' evidence source'+(p.evidences.length>1?'s':'') : 'Paste or link published product info to run the pipeline.'}</div>
+    </div>
+
+    <div class="panel">
+      <h2>1 · Evidence intake</h2>
+      <div class="section-note">Add one item per source — supplier pages, marketplace listings, reviews, test notes, or an image/video URL. All items are analysed together.</div>
+      <div id="evidenceList">${p.evidences.map((ev,i)=>evidenceCardHtml(ev,i,p.evidences.length)).join('')}</div>
+      <button class="ghost-btn" id="addEvidenceBtn">+ Add another evidence source</button>
+
+      <button class="run-btn" id="runBtn" ${inflight?'disabled':''} style="margin-top:18px;">${inflight?'<span class="spinner"></span>Analysing…':(p.assessed?'Re-run assessment':'Run assessment')}</button>
+      <div id="errBox"></div>
+    </div>
+
+    ${p.assessed ? renderResults(p) : ''}
+  `;
+
+  document.getElementById('newBtn').onclick = createNewProduct;
+  attachIntakeHandlers(p);
+}
+
+function evidenceCardHtml(ev, i, total){
+  const opts = SOURCE_TYPES.map(s=>`<option value="${s.v}" ${ev.sourceType===s.v?'selected':''}>${s.l}</option>`).join('');
+  let body;
+  if(ev.sourceType === 'image'){
+    body = `
+      <label>Image URL</label>
+      <input type="text" class="ev-url" data-idx="${i}" value="${escapeHtml(ev.url||'')}" placeholder="https://.../product-photo.jpg">
+      <div class="or-divider">or</div>
+      <label>Paste an image directly (Ctrl+V)</label>
+      <div class="paste-zone" data-idx="${i}" tabindex="0">
+        ${ev.imageData
+          ? `<img src="${ev.imageData}" class="paste-preview"><button class="ghost-btn ev-clear-paste" data-idx="${i}" type="button">Remove pasted image</button>`
+          : ev.hadPastedImage
+            ? `<span class="paste-hint">Click here, then press Ctrl+V — the previously pasted image wasn't saved (nothing is stored between sessions), so paste it again to include it in a re-run.</span>`
+            : `<span class="paste-hint">Click here, then press Ctrl+V (or drop an image file) — nothing is uploaded or saved, it's only used for this analysis.</span>`}
+      </div>
+      <label>Caption / notes (optional)</label>
+      <textarea class="ev-text" data-idx="${i}" style="min-height:64px;" placeholder="Anything worth flagging about this image...">${escapeHtml(ev.text||'')}</textarea>
+      <div class="hint">No file upload needed — paste an image or give a URL and the AI agent inspects it directly. If both are provided, the pasted image is used.</div>`;
+  } else if(ev.sourceType === 'video'){
+    body = `
+      <label>Video URL</label>
+      <input type="text" class="ev-url" data-idx="${i}" value="${escapeHtml(ev.url||'')}" placeholder="https://...">
+      <label>Transcript / description</label>
+      <textarea class="ev-text" data-idx="${i}" style="min-height:64px;" placeholder="Paste a transcript, caption, or written description...">${escapeHtml(ev.text||'')}</textarea>
+      <div class="hint">Video frames aren't analysed automatically yet — the URL is kept for reference, and scoring is based on the transcript/description you provide here.</div>`;
+  } else {
+    body = `
+      <label>Pasted content</label>
+      <textarea class="ev-text" data-idx="${i}" placeholder="Paste text from this source...">${escapeHtml(ev.text||'')}</textarea>`;
+  }
+  return `<div class="evidence-card ${ev.error?'has-error':''}" data-idx="${i}">
+    <div class="row">
+      <div><label>Source type</label><select class="ev-type" data-idx="${i}">${opts}</select></div>
+      ${total>1 ? `<div style="flex:0 0 auto;"><button class="ghost-btn ev-remove" data-idx="${i}" type="button">Remove</button></div>` : ''}
+    </div>
+    ${ev.error ? `<div class="ev-error">⚠ ${escapeHtml(ev.error)}</div>` : ''}
+    ${body}
+  </div>`;
+}
+
+function syncEvidencesFromDOM(p){
+  const old = p.evidences || [];
+  const arr = [];
+  document.querySelectorAll('.ev-type').forEach(sel=>{
+    const idx = parseInt(sel.dataset.idx);
+    arr[idx] = Object.assign({sourceType:'supplier_page', url:'', text:''}, arr[idx], {sourceType: sel.value});
+  });
+  document.querySelectorAll('.ev-url').forEach(inp=>{
+    const idx = parseInt(inp.dataset.idx);
+    arr[idx] = Object.assign({sourceType:'supplier_page', url:'', text:''}, arr[idx], {url: inp.value});
+  });
+  document.querySelectorAll('.ev-text').forEach(t=>{
+    const idx = parseInt(t.dataset.idx);
+    arr[idx] = Object.assign({sourceType:'supplier_page', url:'', text:''}, arr[idx], {text: t.value});
+  });
+  arr.forEach((e,i)=>{
+    if(e && old[i]){
+      if(old[i].error && old[i].url === e.url && old[i].sourceType === e.sourceType) e.error = old[i].error;
+      if(old[i].imageData){ e.imageData = old[i].imageData; e.imageMediaType = old[i].imageMediaType; }
+      if(old[i].hadPastedImage) e.hadPastedImage = true;
+    }
+  });
+  p.evidences = arr.filter(Boolean);
+}
+
+function attachIntakeHandlers(p){
+  document.getElementById('addEvidenceBtn').addEventListener('click', ()=>{
+    syncEvidencesFromDOM(p);
+    p.evidences.push({sourceType:'supplier_page', url:'', text:''});
+    renderConsole(p);
+    if(p.assessed) attachResultHandlers(p);
+  });
+  document.querySelectorAll('.ev-remove').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      syncEvidencesFromDOM(p);
+      p.evidences.splice(parseInt(btn.dataset.idx),1);
+      renderConsole(p);
+      if(p.assessed) attachResultHandlers(p);
+    });
+  });
+  document.querySelectorAll('.ev-type').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      syncEvidencesFromDOM(p);
+      renderConsole(p);
+      if(p.assessed) attachResultHandlers(p);
+    });
+  });
+  document.querySelectorAll('.paste-zone').forEach(zone=>{
+    const idx = parseInt(zone.dataset.idx);
+    const handleImageFile = (blob)=>{
+      compressImageFile(blob, 1600, 0.82).then(({dataUrl, mimeType})=>{
+        syncEvidencesFromDOM(p);
+        p.evidences[idx].imageData = dataUrl;
+        p.evidences[idx].imageMediaType = mimeType;
+        p.evidences[idx].hadPastedImage = true;
+        renderConsole(p);
+        if(p.assessed) attachResultHandlers(p);
+      }).catch(()=>{
+        // fall back to the raw file if compression fails for any reason
+        const reader = new FileReader();
+        reader.onload = ()=>{
+          syncEvidencesFromDOM(p);
+          p.evidences[idx].imageData = reader.result;
+          p.evidences[idx].imageMediaType = blob.type || 'image/png';
+          p.evidences[idx].hadPastedImage = true;
+          renderConsole(p);
+          if(p.assessed) attachResultHandlers(p);
+        };
+        reader.readAsDataURL(blob);
+      });
+    };
+    zone.addEventListener('paste', (evt)=>{
+      const items = (evt.clipboardData || window.clipboardData).items;
+      for(const item of items){
+        if(item.type.indexOf('image')===0){
+          evt.preventDefault();
+          handleImageFile(item.getAsFile());
+          break;
+        }
+      }
+    });
+    zone.addEventListener('dragover', (evt)=>{ evt.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', ()=> zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', (evt)=>{
+      evt.preventDefault(); zone.classList.remove('drag-over');
+      const file = evt.dataTransfer.files && evt.dataTransfer.files[0];
+      if(file && file.type.indexOf('image')===0) handleImageFile(file);
+    });
+  });
+  document.querySelectorAll('.ev-clear-paste').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      syncEvidencesFromDOM(p);
+      const idx = parseInt(btn.dataset.idx);
+      delete p.evidences[idx].imageData;
+      delete p.evidences[idx].imageMediaType;
+      p.evidences[idx].hadPastedImage = false;
+      renderConsole(p);
+      if(p.assessed) attachResultHandlers(p);
+    });
+  });
+  document.getElementById('runBtn').addEventListener('click', ()=> runAssessment(p));
+  const nameInput = document.getElementById('productNameInput');
+  if(nameInput){
+    const commitName = ()=>{
+      p.name = nameInput.value.trim();
+      renderSidebar();
+      if(p.assessed){
+        saveProduct(p);
+        persistIndex();
+      }
+    };
+    nameInput.addEventListener('change', commitName);
+    nameInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') nameInput.blur(); });
+  }
+}
+
+function pctBar(conf){ return `<div class="conf-bar"><div style="width:${Math.round(conf*100)}%"></div></div>`; }
+
+function renderResults(p){
+  const { signals, va, dna, gate, decision, score, commercial, hazard_flags, commercial_note } = p;
+  const decisionClass = decision;
+  const gateNote = gate.gate_status==='PASS' ? 'All gate checks passed.' :
+    gate.gate_status==='HOLD' ? 'Coverage or confidence below the evidence threshold — gather more evidence before deciding.' :
+    'A non-negotiable was violated: ' + (gate.reason_code||'critical safety hazard');
+
+  const signalCards = SIGNAL_TYPES.map(t=>{
+    const s = signals[t];
+    const val = s && s.scorable ? (s.polarity*s.strength) : null;
+    const cls = val===null?'':(val>0?'pos':val<0?'neg':'zero');
+    const conflict = s && s.conflict_level && s.conflict_level!=='NONE' ? `<span class="conflict-flag ${s.conflict_level}">${s.conflict_level} conflict</span>` : '';
+    const refs = s && s.evidence_refs && s.evidence_refs.length ? s.evidence_refs.map(r=>`<span class="ev-tag">Ev.${r}</span>`).join('') : '';
+    return `<div class="signal-card ${s&&s.scorable?'':'unscorable'}">
+      <div class="stitle"><span>${SIGNAL_LABELS[t]}${conflict}</span><span class="sval ${cls}">${s&&s.scorable ? (val>0?'+':'')+val : 'no evidence'}</span></div>
+      ${s&&s.scorable ? `<div class="sinterp">${escapeHtml(s.interpretation||'')}</div>${s.evidence_quote?`<div class="squote">“${escapeHtml(s.evidence_quote)}”</div>`:''}${refs?`<div style="margin-top:6px;">${refs}</div>`:''}${pctBar(s.confidence)}` : `<div class="sinterp">Not addressed in the supplied evidence.</div>`}
+    </div>`;
+  }).join('');
+
+  const dimRow = (label, key)=>{
+    const v = dna.dims[key];
+    const thr = CONFIG.dna_thresholds[key];
+    const fail = v===null || v<thr;
+    return `<tr><td>${label} <span class="weight">(floor ${thr})</span></td><td style="color:${fail?'var(--rust)':'var(--moss)'}">${v===null?'N/A':v.toFixed(1)}</td></tr>`;
+  };
+
+  const commRow = (label, val, w)=>`<tr><td>${label} <span class="weight">(weight ${Math.round(w*100)}%)</span></td><td>${val.toFixed(1)}</td></tr>`;
+
+  return `
+    <div class="decision-banner ${decisionClass}">
+      <div>
+        <div class="status serif">${decision==='REJECT' ? 'OVERALL SCORE' : decision}</div>
+        <div class="reason">${gateNote}</div>
+      </div>
+      <div class="score mono">${score.toFixed(1)} / 100</div>
+    </div>
+
+    <div class="panel">
+      <h2>Executive summary</h2>
+      <div class="exec-grid">
+        <div class="exec-stat"><div class="exec-label">V<sub>A</sub> score</div><div class="exec-val mono">${va.score===null?'N/A':va.score.toFixed(1)}</div></div>
+        <div class="exec-stat"><div class="exec-label">Confidence</div><div class="exec-val mono">${(va.confidence*100).toFixed(0)}%</div></div>
+        <div class="exec-stat"><div class="exec-label">Overall DNA</div><div class="exec-val mono">${dna.overall===null?'N/A':dna.overall.toFixed(1)}</div></div>
+        <div class="exec-stat"><div class="exec-label">Selection Score</div><div class="exec-val mono">${score.toFixed(1)}</div></div>
+      </div>
+    </div>
+
+    ${(hazard_flags.verified_injury||hazard_flags.manufacturer_hazard_warning||hazard_flags.structural_failure_hazard) ? `
+    <div class="flag">⚠ Hard safety trigger detected in evidence — this forces REJECT regardless of other scores.</div>` : ''}
+
+    <div class="panel">
+      <h2>2 · Signals extracted (12 / 12 checked)</h2>
+      <div class="section-note">Coverage ${va.coverage.toFixed(0)}% (${va.coverageStatus}) · aggregate confidence ${(va.confidence*100).toFixed(0)}%</div>
+      <div class="signal-grid">${signalCards}</div>
+    </div>
+
+    <div class="panel">
+      <h2>3 · Aino Selection Value (V<sub>A</sub>)</h2>
+      <table class="score-table">
+        <tr><td>V<sub>A</sub> score</td><td>${va.score===null?'N/A — no scorable signals':va.score.toFixed(1)}</td></tr>
+        <tr><td>Coverage</td><td>${va.coverage.toFixed(0)}% (${va.coverageStatus})</td></tr>
+        <tr><td>Confidence</td><td>${(va.confidence*100).toFixed(0)}%</td></tr>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>4 · Gate &amp; DNA</h2>
+      <div class="section-note">Gate status: <strong>${gate.gate_status}</strong>${gate.reason_code?' — '+escapeHtml(gate.reason_code):''}</div>
+      <table class="score-table">
+        ${dimRow('Human safety','human_safety')}
+        ${dimRow('Animal safety','animal_safety')}
+        ${dimRow('Cleanliness','cleanliness')}
+        ${dimRow('Pet satisfaction','pet_satisfaction')}
+        ${dimRow('Human satisfaction','human_satisfaction')}
+        ${dimRow('Orderliness','orderliness')}
+        ${dimRow('Aesthetics','aesthetics')}
+        <tr><td>Overall DNA (A<sub>D</sub>)</td><td>${dna.overall===null?'N/A':dna.overall.toFixed(1)}</td></tr>
+      </table>
+      ${dna.partial ? '<div class="flag amber">DNA computed on partial signal coverage — treat as provisional.</div>' : ''}
+    </div>
+
+    <div class="panel">
+      <h2>5 · Commercial &amp; operational scoring</h2>
+      <div class="section-note">${escapeHtml(commercial_note||'')} Sub-scores below are AI estimates from the pasted text — verify before relying on them commercially.</div>
+      <table class="score-table">
+        ${commRow('Market demand', commercial.marketDemand, CONFIG.selection_weights.market_demand)}
+        ${commRow('Logistics', commercial.logistics, CONFIG.selection_weights.logistics)}
+        ${commRow('Return / sizing risk', commercial.returnSizing, CONFIG.selection_weights.return_sizing)}
+        ${commRow('Seasonality', commercial.seasonality, CONFIG.selection_weights.seasonality)}
+        ${commRow('Demonstrable value', commercial.demonstrableValue, CONFIG.selection_weights.demonstrable_value)}
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>6 · Selection score &amp; decision</h2>
+      <table class="score-table">
+        ${commRow('Aino Selection Value (V<sub>A</sub>)', va.score===null?0:va.score, CONFIG.selection_weights.va)}
+        ${commRow('Market demand', commercial.marketDemand, CONFIG.selection_weights.market_demand)}
+        ${commRow('Logistics', commercial.logistics, CONFIG.selection_weights.logistics)}
+        ${commRow('Demonstrable value', commercial.demonstrableValue, CONFIG.selection_weights.demonstrable_value)}
+        ${commRow('Return / sizing', commercial.returnSizing, CONFIG.selection_weights.return_sizing)}
+        ${commRow('Seasonality', commercial.seasonality, CONFIG.selection_weights.seasonality)}
+        <tr><td>Selection Score (S)</td><td>${score.toFixed(1)}</td></tr>
+      </table>
+      <div class="section-note" style="margin-top:10px;">Config ${CONFIG.version} · thresholds: SELECT ≥80, TEST ≥65, HOLD ≥50, else REJECT. A Gate HOLD/REJECT always overrides the score band.</div>
+      <div class="foot-actions">
+        <button class="ghost-btn" id="deleteBtn">Delete this assessment</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ============================= FLOW ============================= */
+function blankProduct(){
+  return {
+    id: uid(), name:'', evidences:[{sourceType:'supplier_page', url:'', text:''}],
+    assessed:false, created_at:Date.now(), updated_at:Date.now()
+  };
+}
+function migrateProduct(p){
+  if(!p.evidences){
+    p.evidences = [{sourceType:p.sourceType||'supplier_page', url:p.sourceUrl||'', text:p.rawText||''}];
+  }
+  return p;
+}
+async function createNewProduct(){
+  const p = blankProduct();
+  state.currentId = p.id;
+  state.products.push(p);
+  renderSidebar();
+  renderConsole(p);
+}
+async function openProduct(id){
+  let p = state.products.find(x=>x.id===id);
+  if(!p){ p = await loadProduct(id); if(p) state.products.push(p); }
+  migrateProduct(p);
+  state.currentId = id;
+  renderSidebar();
+  renderConsole(p);
+  attachResultHandlers(p);
+}
+function attachResultHandlers(p){
+  const del = document.getElementById('deleteBtn');
+  if(del){
+    del.addEventListener('click', async ()=>{
+      state.products = state.products.filter(x=>x.id!==p.id);
+      await apiStorage('delete', 'product:'+p.id).catch(()=>{});
+      await persistIndex();
+      state.currentId = null;
+      renderSidebar();
+      renderEmpty();
+    });
+  }
+}
+async function persistIndex(){
+  const idx = state.products.map(p=>({id:p.id, name:p.name, score:p.score, decision:p.decision, updated_at:p.updated_at}));
+  await saveIndex(idx);
+}
+
+async function runAssessment(p){
+  if(inflight) return;
+  syncEvidencesFromDOM(p);
+  p.evidences.forEach(e=> e.error = null);
+  const errBox = document.getElementById('errBox');
+  errBox.innerHTML='';
+  const hasContent = p.evidences.some(ev => (ev.text&&ev.text.trim()) || (ev.url&&ev.url.trim()) || ev.imageData);
+  if(!hasContent){
+    errBox.innerHTML = `<div class="error-box">Add at least one evidence source (pasted text or a URL) before running the assessment.</div>`;
+    return;
+  }
+  inflight = true;
+  renderConsole(p);
+  try{
+    const content = buildMessageContent(p.evidences);
+    const result = await callClaude(content);
+
+    p.name = (p.name && p.name.trim()) ? p.name.trim() : ((result.product && result.product.name) || 'Untitled product');
+    p.product = result.product;
+    p.signals = result.signals;
+    p.hazard_flags = result.hazard_flags || {};
+    p.commercial_estimates = result.commercial_estimates || {};
+    p.commercial_note = result.commercial_note || '';
+
+    p.va = computeVA(p.signals);
+    p.dna = computeDNA(p.signals);
+    p.gate = computeGate(p.signals, p.va, p.dna, p.hazard_flags);
+    p.commercial = computeCommercial(p.commercial_estimates);
+    p.score = computeSelectionScore(p.va, p.commercial);
+    p.decision = decisionFromScore(p.score, p.gate);
+    p.assessed = true;
+    p.updated_at = Date.now();
+
+    await saveProduct(p);
+    await persistIndex();
+    inflight = false;
+    renderSidebar();
+    renderConsole(p);
+    attachResultHandlers(p);
+  }catch(e){
+    inflight = false;
+    const msg = e.message || String(e);
+    await diagnoseAndFlagEvidence(p, msg);
+    renderConsole(p);
+    if(p.assessed) attachResultHandlers(p);
+    document.getElementById('errBox').innerHTML = buildErrorBanner(msg, p);
+  }finally{
+    inflight = false;
+  }
+}
+
+function renderEmpty(){
+  document.getElementById('wrap').innerHTML = `
+    <div class="empty-state">
+      <div class="icon">◆</div>
+      <h2 class="serif">No product open</h2>
+      <div>Start a new assessment or pick one from the queue on the left.</div>
+    </div>`;
+}
+
+/* ============================= INIT ============================= */
+async function init(){
+  document.getElementById('newBtn').addEventListener('click', createNewProduct);
+  const idx = await loadIndex();
+  if(idx.length){
+    for(const item of idx){
+      const p = await loadProduct(item.id);
+      if(p) state.products.push(migrateProduct(p));
+    }
+  }
+  renderSidebar();
+  if(state.products.length){
+    openProduct(state.products.slice().sort((a,b)=>b.updated_at-a.updated_at)[0].id);
+  } else {
+    createNewProduct();
+  }
+}
+
+</script>
+</body>
+</html>
