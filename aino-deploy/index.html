@@ -1,0 +1,2433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aino — Selection Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F5F1E8;
+    --panel:#FBF9F4;
+    --ink:#211D17;
+    --ink-muted:#6B6355;
+    --line:#DAD3C2;
+    --moss:#4B5D45;
+    --moss-dim:#E4E9E0;
+    --amber:#9C6B12;
+    --amber-dim:#F1E6D2;
+    --rust:#A9432B;
+    --rust-dim:#F3E1DC;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:Arial,Helvetica,sans-serif;
+    font-size:14px;
+    line-height:1.5;
+  }
+  h1,h2,h3,.serif{font-family:Arial,Helvetica,sans-serif;}
+  .mono{font-family:Arial,Helvetica,sans-serif;}
+  #app{display:flex;min-height:100vh;}
+
+  /* ---------- sidebar ---------- */
+  #sidebar{
+    width:270px;
+    flex-shrink:0;
+    position:fixed;
+    top:0;left:0;bottom:0;
+    z-index:900;
+    background:var(--ink);color:var(--paper);
+    display:flex;flex-direction:column;
+    padding:22px 0;
+    transition:width .2s ease, padding .2s ease;
+    overflow:hidden;
+    white-space:nowrap;
+  }
+  #sidebar.collapsed{width:0;padding-left:0;padding-right:0;}
+  .hamburger-btn{
+    position:fixed;top:14px;left:14px;z-index:1000;
+    width:34px;height:34px;border-radius:4px;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink);font-size:16px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .hamburger-btn:hover{background:#EFEADE;}
+  .brand{padding:44px 20px 18px;border-bottom:1px solid rgba(245,241,232,.15);margin-bottom:14px;}
+  .limits-link{display:block;background:none;border:none;color:#B9AF97;font-size:11.5px;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:0;margin-top:8px;font-family:Arial,Helvetica,sans-serif;text-align:left;white-space:normal;}
+  .limits-link:hover{color:var(--paper);}
+  .brand .name{font-family:Arial,Helvetica,sans-serif;font-size:21px;font-weight:600;letter-spacing:.2px;}
+  .brand .tag{font-size:11.5px;color:#C9C2AE;margin-top:3px;}
+  .new-btn{
+    margin:0 20px 16px;padding:10px 12px;
+    background:var(--moss);color:#fff;border:none;border-radius:3px;
+    font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;cursor:pointer;
+    text-align:left;
+  }
+  .new-btn:hover{filter:brightness(1.08);}
+  .queue{flex:1;overflow-y:auto;padding:0 8px;}
+  .queue-group{margin:0 0 4px;}
+  .queue-group-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;color:#C9C2AE;padding:10px 12px 6px;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;cursor:pointer;text-align:left;}
+  .queue-group-toggle:hover{color:var(--paper);}
+  .queue-group-toggle::after{content:'⌄';font-size:12px;line-height:1;transition:transform .15s ease;}
+  .queue-group.is-collapsed .queue-group-toggle::after{transform:rotate(-90deg);}
+  .queue-group.is-collapsed .queue-group-items{display:none;}
+  .queue-group-items{padding:0;}
+  .queue-item{
+    padding:10px 12px;border-radius:3px;cursor:pointer;margin-bottom:2px;
+    display:flex;flex-direction:column;gap:3px;
+  }
+  .queue-item:hover{background:rgba(245,241,232,.08);}
+  .queue-item.active{background:rgba(245,241,232,.14);}
+  .queue-item .qname{font-size:13px;font-weight:500;color:var(--paper);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .queue-item .qtime{font-size:10.5px;color:#8D8471;margin-top:1px;}
+  .queue-item .qmeta{font-size:11px;color:#A79E89;display:flex;justify-content:space-between;}
+  .queue-empty{padding:14px 20px;font-size:12.5px;color:#8D8471;}
+  .badge{
+    display:inline-block;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:600;
+    font-family:Arial,Helvetica,sans-serif;letter-spacing:.3px;
+  }
+  .badge.SELECT{background:var(--moss-dim);color:var(--moss);}
+  .badge.TEST{background:var(--amber-dim);color:var(--amber);}
+  .badge.HOLD{background:#EDE9DD;color:#8A806B;}
+  .badge.REJECT{background:var(--rust-dim);color:var(--rust);}
+
+  /* ---------- main ---------- */
+  #main{
+    flex:1;
+    min-width:0;
+    margin-left:270px;
+    overflow-y:auto;
+    padding:42px 48px 90px;
+    transition:margin-left .2s ease;
+  }
+  #app.sidebar-collapsed #main{margin-left:0;}
+  .wrap{max-width:840px;margin:0 auto;}
+  .case-header{margin-bottom:26px;}
+  .case-header h1{font-size:26px;margin:0 0 4px;font-weight:600;}
+  .case-header .sub{color:var(--ink-muted);font-size:13.5px;}
+  .product-name-input{font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:600;border:none;border-bottom:1px solid transparent;background:transparent;padding:0 0 2px;margin:0 0 4px;color:var(--ink);width:100%;}
+  .product-name-input::placeholder{color:var(--ink-muted);opacity:.6;}
+  .product-name-input:focus{outline:none;border-bottom:1px solid var(--line);}
+  .product-url-input{font-family:Arial,Helvetica,sans-serif;font-size:12.5px;border:none;border-bottom:1px solid transparent;background:transparent;padding:0 0 2px;margin:0 0 6px;color:var(--moss);width:100%;}
+  .product-url-input::placeholder{color:var(--ink-muted);opacity:.6;}
+  .product-url-input:focus{outline:none;border-bottom:1px solid var(--line);}
+  .collection-select{width:auto;display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:12px;padding:4px 8px;border:1px solid var(--line);border-radius:20px;background:#fff;color:var(--ink);margin-bottom:8px;}
+
+  .stepper{display:flex;gap:0;margin-bottom:34px;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--panel);}
+  .step{flex:1;padding:11px 14px;font-size:12px;color:var(--ink-muted);border-right:1px solid var(--line);position:relative;}
+  .step:last-child{border-right:none;}
+  .step .n{font-family:Arial,Helvetica,sans-serif;font-size:11px;margin-right:6px;}
+  .step.done{color:var(--moss);background:var(--moss-dim);}
+  .step.active{color:var(--ink);font-weight:600;}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:22px 24px;margin-bottom:22px;}
+  .panel h2{font-size:15px;margin:0 0 14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+  label{display:block;font-size:12px;color:var(--ink-muted);margin-bottom:5px;margin-top:14px;}
+  label:first-child{margin-top:0;}
+  input[type=text],input[type=number],select,textarea{
+    width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:3px;
+    font-family:Arial,Helvetica,sans-serif;font-size:13.5px;background:#fff;color:var(--ink);
+  }
+  textarea{min-height:170px;resize:vertical;font-family:Arial,Helvetica,sans-serif;font-size:12.5px;line-height:1.55;}
+  .row{display:flex;gap:14px;}
+  .row > div{flex:1;}
+  .hint{font-size:11.5px;color:var(--ink-muted);margin-top:4px;}
+  .run-btn{
+    margin-top:20px;padding:11px 20px;background:var(--ink);color:var(--paper);border:none;
+    border-radius:3px;font-family:Arial,Helvetica,sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;
+  }
+  .run-btn:disabled{opacity:.5;cursor:default;}
+  .run-btn:hover:not(:disabled){background:#3a342a;}
+
+  .assessment-inputs-toggle{margin-top:16px;margin-bottom:16px;}
+  .assessment-inputs-toggle > summary{
+    list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 18px;background:var(--paper);border:1px solid var(--line);border-radius:4px;
+    font-size:14px;font-weight:600;
+  }
+  .assessment-inputs-toggle > summary::-webkit-details-marker{display:none;}
+  .assessment-inputs-toggle > summary::after{content:'+';font-size:18px;font-weight:400;color:var(--ink-muted);}
+  .assessment-inputs-toggle[open] > summary{border-bottom-left-radius:0;border-bottom-right-radius:0;}
+  .assessment-inputs-toggle[open] > summary::after{content:'−';}
+  .assessment-inputs-toggle-body{padding-top:0;}
+  .assessment-inputs-toggle-body .panel{margin-top:0;border-top-left-radius:0;border-top-right-radius:0;}
+
+  .decision-banner{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:20px 24px;border-radius:4px;margin-bottom:22px;border:1px solid var(--line);
+  }
+  .decision-banner.SELECT{background:var(--moss-dim);border-color:var(--moss);}
+  .decision-banner.TEST{background:var(--amber-dim);border-color:var(--amber);}
+  .decision-banner.HOLD{background:#EDE9DD;border-color:#B9AF97;}
+  .decision-banner.REJECT{background:var(--rust-dim);border-color:var(--rust);}
+  .decision-banner .status{font-family:Arial,Helvetica,sans-serif;font-size:28px;font-weight:600;}
+  .decision-banner .score{font-family:Arial,Helvetica,sans-serif;font-size:22px;}
+  .decision-banner .reason{font-size:12.5px;color:var(--ink-muted);margin-top:4px;max-width:420px;}
+
+  .signal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .signal-card{border:1px solid var(--line);border-radius:4px;padding:12px 14px;background:#fff;}
+  .signal-card .stitle{font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:baseline;}
+  .signal-card .sval{font-family:Arial,Helvetica,sans-serif;font-size:12px;}
+  .signal-card .sval.pos{color:var(--moss);}
+  .signal-card .sval.neg{color:var(--rust);}
+  .signal-card .sval.zero{color:var(--ink-muted);}
+  .signal-card .sinterp{font-size:12px;color:var(--ink-muted);margin-top:6px;line-height:1.4;}
+  .signal-card .squote{font-size:11.5px;font-style:italic;color:#8A8270;margin-top:5px;border-left:2px solid var(--line);padding-left:8px;}
+  .signal-card.unscorable{opacity:.5;}
+  .conf-bar{height:3px;background:var(--line);border-radius:2px;margin-top:8px;overflow:hidden;}
+  .conf-bar > div{height:100%;background:var(--ink);}
+
+  .score-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .score-table td{padding:7px 0;border-bottom:1px solid var(--line);}
+  .score-table td:last-child{text-align:right;font-family:Arial,Helvetica,sans-serif;}
+  .score-table tr:last-child td{border-bottom:none;font-weight:600;}
+  .score-table .weight{color:var(--ink-muted);font-size:11.5px;}
+
+  .flag{
+    display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:8px 10px;
+    border-radius:3px;margin-top:8px;background:var(--rust-dim);color:var(--rust);
+  }
+  .flag.good{background:var(--moss-dim);color:var(--moss);}
+  .flag.amber{background:var(--amber-dim);color:var(--amber);}
+
+  .cbrow{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;}
+  .cbrow input{width:auto;}
+
+  .empty-state{padding:70px 20px;text-align:center;color:var(--ink-muted);}
+  .empty-state h2{font-size:19px;color:var(--ink);margin-bottom:8px;}
+  .empty-state .icon{font-size:34px;margin-bottom:14px;}
+
+  .spinner{
+    display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.35);
+    border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:-2px;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .error-box{background:var(--rust-dim);color:var(--rust);padding:12px 14px;border-radius:3px;font-size:12.5px;margin-top:14px;}
+  .section-note{font-size:11.5px;color:var(--ink-muted);margin-top:-6px;margin-bottom:14px;}
+  .foot-actions{display:flex;gap:10px;margin-top:6px;}
+  .ghost-btn{background:none;border:1px solid var(--line);padding:8px 14px;border-radius:3px;font-size:12.5px;cursor:pointer;color:var(--ink);}
+  .ghost-btn:hover{background:#EFEADE;}
+  .evidence-card{border:1px solid var(--line);border-radius:4px;padding:14px 16px;background:#fff;margin-bottom:12px;}
+  .evidence-card.has-error{border-color:var(--rust);background:var(--rust-dim);}
+  .ev-error{color:var(--rust);font-size:12px;font-weight:600;margin-bottom:10px;display:flex;gap:6px;align-items:flex-start;}
+  .or-divider{display:flex;align-items:center;gap:10px;margin:12px 0 4px;color:var(--ink-muted);font-size:11px;}
+  .or-divider::before,.or-divider::after{content:"";flex:1;height:1px;background:var(--line);}
+  .paste-zone{border:1px dashed var(--line);border-radius:4px;padding:16px;text-align:center;cursor:text;background:#FBFAF6;}
+  .paste-zone:focus{outline:2px solid var(--moss);outline-offset:1px;}
+  .paste-zone.drag-over{border-color:var(--moss);background:var(--moss-dim);}
+  .paste-hint{font-size:12px;color:var(--ink-muted);}
+  .paste-preview{max-width:100%;max-height:160px;border-radius:3px;display:block;margin:0 auto 10px;}
+  .paste-note{font-size:11.5px;color:var(--amber);margin-top:6px;}
+  .exec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px 0;}
+  .exec-stat{padding:4px 14px;border-left:1px solid var(--line);}
+  .exec-stat:first-child{border-left:none;padding-left:0;}
+  .exec-label{font-size:11px;color:var(--ink-muted);margin-bottom:4px;}
+  .exec-val{font-size:19px;font-weight:500;}
+  .evidence-card .row{align-items:flex-end;}
+  .ev-tag{display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:var(--ink-muted);background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:1px 8px;margin-right:6px;margin-top:4px;}
+  .conflict-flag{font-size:10.5px;font-family:Arial,Helvetica,sans-serif;padding:1px 7px;border-radius:20px;margin-left:8px;}
+  .conflict-flag.LOW{background:var(--amber-dim);color:var(--amber);}
+  .conflict-flag.MEDIUM,.conflict-flag.HIGH{background:var(--rust-dim);color:var(--rust);}
+
+  /* ---------- responsive layout ---------- */
+  :root{
+    --content-gutter:clamp(14px,4vw,48px);
+    --panel-pad-x:clamp(14px,2.4vw,24px);
+    --panel-pad-y:clamp(16px,2vw,22px);
+    --section-gap:clamp(14px,2vw,22px);
+  }
+  .panel{padding:var(--panel-pad-y) var(--panel-pad-x);margin-bottom:var(--section-gap);}
+  #main{padding:clamp(28px,5vw,42px) var(--content-gutter) clamp(50px,8vw,90px);}
+  .wrap{width:min(100%,960px);}
+  .row{flex-wrap:wrap;}
+  .row > div{min-width:0;}
+  .decision-banner{gap:18px;flex-wrap:wrap;padding:clamp(16px,2.5vw,20px) var(--panel-pad-x);}
+  .decision-banner .reason{max-width:min(100%,560px);}
+  .stepper{margin-bottom:clamp(22px,4vw,34px);}
+  .step{min-width:0;}
+  .setup-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:14px 0 4px;}
+  .setup-grid > div{min-width:0;}
+  .setup-grid label{display:block;font-size:12px;color:var(--ink-muted);margin-bottom:6px;}
+  .setup-grid input,.setup-grid select{width:100%;min-width:0;}
+
+
+  @media (max-width: 1100px){
+    .setup-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  }
+
+  @media (max-width: 900px){
+    #main{margin-left:0;}
+    #sidebar{width:270px;box-shadow:8px 0 24px rgba(0,0,0,.12);}
+    #sidebar.collapsed{width:270px;padding-left:0;padding-right:0;transform:translateX(-100%);}
+    .hamburger-btn{top:10px;left:10px;}
+    .case-header{padding-top:8px;}
+    .signal-grid{grid-template-columns:1fr;}
+  }
+
+  @media (max-width: 640px){
+    .setup-grid{grid-template-columns:1fr;}
+    body{font-size:13.5px;}
+    #main{padding-top:58px;}
+    .case-header{margin-bottom:20px;}
+    .case-header h1,.product-name-input{font-size:22px;line-height:1.25;}
+    .product-url-input{font-size:12px;}
+    .stepper{display:grid;grid-template-columns:1fr 1fr;}
+    .step{padding:9px 10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
+    .step:nth-child(2n){border-right:none;}
+    .step:nth-last-child(-n+2){border-bottom:none;}
+    .panel h2{font-size:14px;}
+    label{font-size:11.5px;}
+    input[type=text],input[type=number],select,textarea{font-size:13px;}
+    textarea{min-height:140px;font-size:12px;}
+    .run-btn{width:100%;margin-top:16px;padding:11px 14px;}
+    .foot-actions{flex-wrap:wrap;}
+    .foot-actions > *{flex:1 1 140px;}
+    .exec-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .exec-stat{border-left:none;border-top:1px solid var(--line);padding:10px 0 0;}
+    .exec-stat:nth-child(-n+2){border-top:none;}
+    .exec-stat:first-child{padding-left:0;}
+    .decision-banner .status{font-size:23px;}
+    .decision-banner .score{font-size:19px;}
+    .score-table{font-size:12px;}
+    .score-table td{padding:6px 4px 6px 0;vertical-align:top;}
+    .score-table td:last-child{white-space:nowrap;}
+    .queue-item .qname{font-size:12.5px;}
+    .evidence-card{padding:12px;}
+    .evidence-card .row{gap:10px;}
+  }
+
+  @media (max-width: 420px){
+    #main{padding-left:12px;padding-right:12px;}
+    .stepper{grid-template-columns:1fr;}
+    .step{border-right:none!important;border-bottom:1px solid var(--line)!important;}
+    .step:last-child{border-bottom:none!important;}
+    .exec-grid{grid-template-columns:1fr 1fr;gap:0 12px;}
+    .decision-banner{align-items:flex-start;}
+    .panel{border-radius:3px;}
+    .signal-card{padding:10px 11px;}
+  }
+
+</style>
+</head>
+<body>
+<div id="passGate" style="position:fixed;inset:0;background:var(--paper);display:flex;align-items:center;justify-content:center;z-index:999;">
+  <div style="max-width:320px;width:100%;padding:28px;background:var(--panel);border:1px solid var(--line);border-radius:6px;">
+    <div class="serif" style="font-size:20px;margin-bottom:6px;">Aino Selection Console</div>
+    <div class="section-note" style="margin-bottom:14px;">Enter the access password to continue.</div>
+    <input type="password" id="passInput" placeholder="Password" autofocus>
+    <button class="run-btn" id="passSubmit" style="width:100%;margin-top:10px;">Enter</button>
+    <div id="passErr" style="color:var(--rust);font-size:12px;margin-top:8px;"></div>
+  </div>
+</div>
+<div id="app" style="display:none;">
+  <button class="hamburger-btn" id="sidebarToggle" type="button" aria-label="Toggle sidebar">☰</button>
+  <div id="sidebar">
+    <div class="brand">
+      <div class="name">Aino Home</div>
+      <div class="tag">Selection Engine · v2.0</div>
+      <button class="limits-link" id="limitsLink" type="button">AI token usage</button>
+      <button class="limits-link" id="glossaryLink" type="button">Glossary of signals</button>
+      <button class="limits-link" id="dnaGlossaryLink" type="button">Glossary of Gate &amp; DNA dimensions</button>
+      <button class="limits-link" id="assessmentGlossaryLink" type="button">Glossary of assessment results</button>
+    </div>
+    <button class="new-btn" id="newBtn">+ New assessment</button>
+    <div class="queue" id="queue"></div>
+  </div>
+  <div id="limitsModal" style="display:none;position:fixed;inset:0;background:rgba(33,29,23,.55);z-index:998;align-items:center;justify-content:center;">
+    <div style="max-width:460px;width:92%;max-height:82vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:24px 26px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="serif" style="font-size:18px;">DeepSeek V4.1 Flash</div>
+        <button class="ghost-btn" id="limitsClose" type="button" style="padding:4px 10px;">✕</button>
+      </div>
+      <div class="section-note" style="margin-top:6px;">Paid, metered API · model: <span class="mono">deepseek-flash</span></div>
+      <table class="score-table" style="margin-top:10px;">
+        <tr><td>Input price</td><td>$0.15 / 1M tokens (off-peak)</td></tr>
+        <tr><td>Output price</td><td>$0.60 / 1M tokens (off-peak)</td></tr>
+        <tr><td>Peak-hour pricing</td><td>2× both (see DeepSeek's docs for the current peak window)</td></tr>
+        <tr><td>Context window</td><td>1,000,000 tokens</td></tr>
+        <tr><td>Max output</td><td>384,000 tokens</td></tr>
+        <tr><td>Reasoning</td><td>Extended "High" effort — on by default</td></tr>
+      </table>
+      <div class="section-note" style="margin-top:14px;">With reasoning enabled, the model spends part of its output budget "thinking" before answering — this console floors the token ceiling at 8,000 per request to avoid empty responses.</div>
+      <ul style="font-size:12.5px;color:var(--ink-muted);padding-left:18px;margin:8px 0 0;line-height:1.7;">
+        <li>Typical assessment cost: well under a cent, even with images attached</li>
+        <li>No free tier — this is billed against your prepaid DeepSeek balance</li>
+      </ul>
+      <div class="section-note" style="margin-top:14px;">This is a paid account, not a shared rate-limited free tier, so day-to-day use shouldn't hit hard caps the way earlier free-tier providers did. Track actual spend and any account-specific limits at <a href="https://platform.deepseek.com" target="_blank" rel="noopener">platform.deepseek.com</a>.</div>
+    </div>
+  </div>
+  <div id="glossaryModal" style="display:none;position:fixed;inset:0;background:rgba(33,29,23,.55);z-index:998;align-items:center;justify-content:center;">
+    <div style="max-width:520px;width:92%;max-height:82vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:24px 26px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="serif" style="font-size:18px;">Glossary of signals</div>
+        <button class="ghost-btn" id="glossaryClose" type="button" style="padding:4px 10px;">✕</button>
+      </div>
+      <div class="section-note" style="margin-top:6px;">What each of the 12 signals is actually measuring.</div>
+      <table class="score-table" style="margin-top:10px;">
+        <tr><td>Animal safety</td><td>Physical or chemical hazard risk to the pet</td></tr>
+        <tr><td>Human safety</td><td>Hazard risk to the humans handling or near it</td></tr>
+        <tr><td>Health &amp; wellbeing</td><td>Support for the pet's physical health (posture, warmth, pressure relief)</td></tr>
+        <tr><td>Comfort</td><td>How pleasant/soft the product feels to the pet</td></tr>
+        <tr><td>Cleanliness</td><td>How well it resists dirt, odor, or staining over time</td></tr>
+        <tr><td>Easy maintenance</td><td>How easy it is to wash, clean, or upkeep</td></tr>
+        <tr><td>Convenience</td><td>Ease of use, storage, and handling for the owner</td></tr>
+        <tr><td>Interaction</td><td>How it facilitates engagement between pet and owner</td></tr>
+        <tr><td>Agency</td><td>How much freedom/control the pet has (movement, choice)</td></tr>
+        <tr><td>Organisation</td><td>How well it helps keep the home tidy</td></tr>
+        <tr><td>Space efficiency</td><td>How compact or space-saving the product is</td></tr>
+        <tr><td>Aesthetics</td><td>Visual style and appeal</td></tr>
+      </table>
+      <div class="section-note" style="margin-top:14px;">The Gate &amp; DNA panel groups some of these into composites: <strong>Pet satisfaction</strong> (health &amp; wellbeing + comfort + a share of interaction), <strong>Human satisfaction</strong> (convenience + agency + a share of interaction), and <strong>Orderliness</strong> (organisation + space efficiency). Animal safety, human safety, cleanliness, and aesthetics stand alone.</div>
+    </div>
+  </div>
+  <div id="assessmentGlossaryModal" style="display:none;position:fixed;inset:0;background:rgba(33,29,23,.55);z-index:998;align-items:center;justify-content:center;">
+    <div style="max-width:620px;width:92%;max-height:82vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:24px 26px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="serif" style="font-size:18px;">Glossary of assessment results</div>
+        <button class="ghost-btn" id="assessmentGlossaryClose" type="button" style="padding:4px 10px;">✕</button>
+      </div>
+      <div class="section-note" style="margin-top:6px;">What each final Selection Engine result means. The Gate is a hard constraint and can override the Selection Score band.</div>
+      <table class="score-table" style="margin-top:10px;">
+        <tr><td>SELECT</td><td>Gate passed and Selection Score is ≥80. The product is ready to be selected under the current evidence and configuration.</td></tr>
+        <tr><td>TEST</td><td>Gate passed and Selection Score is ≥65 but below 80, or a raw SELECT result is capped at TEST because animal/human safety evidence is incomplete or below its floor.</td></tr>
+        <tr><td>HOLD</td><td>The product is not ready for a selection decision because the Gate requires more evidence, such as insufficient coverage, low confidence, or partial DNA. A score band of 50–64.9 also maps to HOLD when the Gate passes.</td></tr>
+        <tr><td>REJECT</td><td>A hard Gate condition failed, such as a critical safety hazard or failed DNA threshold, or the Selection Score is below 50 when the Gate passes.</td></tr>
+      </table>
+      <div class="section-note" style="margin-top:14px;"><strong>Important:</strong> Product assessment and transaction economics are separate decisions. A pricing result such as <strong>REVIEW</strong> or <strong>NOT SUPPORTED</strong> does not by itself change the product assessment result.</div>
+    </div>
+  </div>
+  <div id="dnaGlossaryModal" style="display:none;position:fixed;inset:0;background:rgba(33,29,23,.55);z-index:998;align-items:center;justify-content:center;">
+    <div style="max-width:620px;width:92%;max-height:82vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:24px 26px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="serif" style="font-size:18px;">Glossary of Gate &amp; DNA dimensions</div>
+        <button class="ghost-btn" id="dnaGlossaryClose" type="button" style="padding:4px 10px;">✕</button>
+      </div>
+      <div class="section-note" style="margin-top:6px;">What the Gate checks, what each DNA dimension measures, and the configured floors used by the Selection Engine.</div>
+
+      <h3 style="font-size:13px;margin:16px 0 6px;">Gate</h3>
+      <table class="score-table" style="margin-top:8px;">
+        <tr><td>Gate status</td><td>PASS, HOLD, or REJECT. The Gate is a hard constraint and overrides the Selection Score band.</td></tr>
+        <tr><td>Hard safety trigger</td><td>REJECT if animal or human safety evidence is strongly negative (polarity &lt; 0 and strength ≥ 3), or if verified injury, manufacturer hazard warning, or structural failure hazard is present.</td></tr>
+        <tr><td>Evidence sufficiency</td><td>HOLD when signal coverage is below the limited-evidence threshold or aggregate confidence is below 40%.</td></tr>
+        <tr><td>DNA thresholds</td><td>Non-safety DNA dimensions are checked against their configured floors. A missing dimension places the Gate on HOLD; a dimension below its floor fails the Gate.</td></tr>
+        <tr><td>Safety verification</td><td>Human and animal safety dimensions are tracked as <em>safety unverified</em> when evidence is present but the dimension remains below its floor. This does not itself fail the Gate, but it can cap a SELECT decision at TEST.</td></tr>
+        <tr><td>Overall DNA</td><td>HOLD when Overall DNA is missing or partial; REJECT only when complete Overall DNA is below the configured overall floor.</td></tr>
+      </table>
+
+      <h3 style="font-size:13px;margin:18px 0 6px;">DNA dimensions</h3>
+      <table class="score-table" style="margin-top:8px;">
+        <tr><td>Human safety</td><td>Directly reflects the Human safety signal. Floor: 80.</td></tr>
+        <tr><td>Animal safety</td><td>Directly reflects the Animal safety signal. Floor: 85.</td></tr>
+        <tr><td>Cleanliness</td><td>Directly reflects the Cleanliness signal. Floor: 60.</td></tr>
+        <tr><td>Aesthetics</td><td>Directly reflects the Aesthetics signal. Floor: 50.</td></tr>
+        <tr><td>Pet satisfaction</td><td>Composite of Health &amp; wellbeing (34%), Comfort (33%), and an Interaction share (33%). Interaction contributes half of its normalized score to this dimension. Floor: 50.</td></tr>
+        <tr><td>Human satisfaction</td><td>Composite of Convenience (34%), Agency (33%), and an Interaction share (33%). Interaction contributes half of its normalized score to this dimension. Floor: 50.</td></tr>
+        <tr><td>Orderliness</td><td>Composite of Organisation (50%) and Space efficiency (50%). Floor: 55.</td></tr>
+        <tr><td>Overall DNA (A<sub>D</sub>)</td><td>Weighted composite of the DNA dimensions, using the configured weights and renormalising over dimensions that have values. Floor: 70.</td></tr>
+      </table>
+
+      <h3 style="font-size:13px;margin:18px 0 6px;">Configured DNA weights</h3>
+      <table class="score-table" style="margin-top:8px;">
+        <tr><td>Animal safety</td><td>25%</td></tr>
+        <tr><td>Human safety</td><td>20%</td></tr>
+        <tr><td>Pet satisfaction</td><td>15%</td></tr>
+        <tr><td>Human satisfaction</td><td>15%</td></tr>
+        <tr><td>Cleanliness</td><td>10%</td></tr>
+        <tr><td>Aesthetics</td><td>7.5%</td></tr>
+        <tr><td>Orderliness</td><td>7.5%</td></tr>
+      </table>
+    </div>
+  </div>
+  <div id="main">
+    <div class="wrap" id="wrap"></div>
+  </div>
+</div>
+
+<script>
+/* ============================= ACCESS GATE + BACKEND BRIDGE ============================= */
+const APP_PASS_KEY = 'ainoAppPassword';
+function getPassword(){ return sessionStorage.getItem(APP_PASS_KEY) || ''; }
+async function apiStorage(action, key, value, prefix){
+  const resp = await fetch('/api/storage', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-app-password':getPassword()},
+    body: JSON.stringify({action, key, value, prefix})
+  });
+  if(resp.status===401){ showPassGate('Incorrect password.'); throw new Error('Unauthorized'); }
+  return resp.json();
+}
+function showPassGate(err){
+  document.getElementById('app').style.display='none';
+  document.getElementById('passGate').style.display='flex';
+  document.getElementById('passErr').textContent = err||'';
+  sessionStorage.removeItem(APP_PASS_KEY);
+}
+async function tryUnlock(pw){
+  sessionStorage.setItem(APP_PASS_KEY, pw);
+  const resp = await fetch('/api/storage', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-app-password':pw},
+    body: JSON.stringify({action:'get', key:'product-index'})
+  });
+  if(resp.status===401){
+    document.getElementById('passErr').textContent = 'Incorrect password.';
+    sessionStorage.removeItem(APP_PASS_KEY);
+    return false;
+  }
+  document.getElementById('passGate').style.display='none';
+  document.getElementById('app').style.display='flex';
+  return true;
+}
+document.getElementById('passSubmit').addEventListener('click', ()=>{
+  tryUnlock(document.getElementById('passInput').value).then(ok=>{ if(ok) init(); });
+});
+document.getElementById('passInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') document.getElementById('passSubmit').click();
+});
+document.getElementById('limitsLink').addEventListener('click', ()=>{
+  document.getElementById('limitsModal').style.display='flex';
+});
+document.getElementById('limitsClose').addEventListener('click', ()=>{
+  document.getElementById('limitsModal').style.display='none';
+});
+document.getElementById('limitsModal').addEventListener('click', (e)=>{
+  if(e.target.id==='limitsModal') document.getElementById('limitsModal').style.display='none';
+});
+document.getElementById('glossaryLink').addEventListener('click', ()=>{
+  document.getElementById('glossaryModal').style.display='flex';
+});
+document.getElementById('glossaryClose').addEventListener('click', ()=>{
+  document.getElementById('glossaryModal').style.display='none';
+});
+document.getElementById('glossaryModal').addEventListener('click', (e)=>{
+  if(e.target.id==='glossaryModal') document.getElementById('glossaryModal').style.display='none';
+});
+document.getElementById('dnaGlossaryLink').addEventListener('click', ()=>{
+  document.getElementById('dnaGlossaryModal').style.display='flex';
+});
+document.getElementById('dnaGlossaryClose').addEventListener('click', ()=>{
+  document.getElementById('dnaGlossaryModal').style.display='none';
+});
+document.getElementById('dnaGlossaryModal').addEventListener('click', (e)=>{
+  if(e.target.id==='dnaGlossaryModal') document.getElementById('dnaGlossaryModal').style.display='none';
+});
+document.getElementById('assessmentGlossaryLink').addEventListener('click', ()=>{
+  document.getElementById('assessmentGlossaryModal').style.display='flex';
+});
+document.getElementById('assessmentGlossaryClose').addEventListener('click', ()=>{
+  document.getElementById('assessmentGlossaryModal').style.display='none';
+});
+document.getElementById('assessmentGlossaryModal').addEventListener('click', (e)=>{
+  if(e.target.id==='assessmentGlossaryModal') document.getElementById('assessmentGlossaryModal').style.display='none';
+});
+document.getElementById('sidebarToggle').addEventListener('click', ()=>{
+  const sidebar = document.getElementById('sidebar');
+  const app = document.getElementById('app');
+  sidebar.classList.toggle('collapsed');
+  app.classList.toggle('sidebar-collapsed');
+});
+if(getPassword()){
+  tryUnlock(getPassword()).then(ok=>{ if(ok) init(); });
+}
+/* ============================= CONFIGURATION (v1.0.0, per spec §3.9) ============================= */
+const CONFIG = {
+  version: "config_v1.0.0",
+  va_signal_weights: {
+    animal_safety:.07, human_safety:.09, health_wellbeing:.14, comfort:.12,
+    cleanliness:.10, easy_maintenance:.09, convenience:.08, interaction:.08,
+    agency:.07, organisation:.05, space_efficiency:.05, aesthetics:.04
+  },
+  dna_composition: {
+    human_safety:{human_safety:1}, animal_safety:{animal_safety:1},
+    cleanliness:{cleanliness:1}, aesthetics:{aesthetics:1},
+    pet_satisfaction:{health_wellbeing:.34, comfort:.33, interaction_share:.33},
+    human_satisfaction:{convenience:.34, agency:.33, interaction_share:.33},
+    orderliness:{organisation:.5, space_efficiency:.5},
+    interaction_split:{pet_satisfaction:.5, human_satisfaction:.5}
+  },
+  dna_weights:{human_satisfaction:.15, pet_satisfaction:.15, human_safety:.20, animal_safety:.25, cleanliness:.10, aesthetics:.075, orderliness:.075},
+  dna_thresholds:{human_safety:80, animal_safety:85, cleanliness:60, pet_satisfaction:50, human_satisfaction:50, orderliness:55, aesthetics:50, overall:70},
+  coverage_thresholds:{full:80, good:60, limited:40},
+  confidence_thresholds:{hold_below:.40},
+  selection_weights:{va:.3529, market_demand:.2118, logistics:.1412, demonstrable_value:.1176, return_sizing:.0941, seasonality:.0824},
+  decision_thresholds:{select:80, test:65, hold:50}
+};
+const SIGNAL_TYPES = ["animal_safety","human_safety","health_wellbeing","comfort","cleanliness","easy_maintenance","convenience","interaction","agency","organisation","space_efficiency","aesthetics"];
+const SIGNAL_LABELS = {animal_safety:"Animal safety",human_safety:"Human safety",health_wellbeing:"Health & wellbeing",comfort:"Comfort",cleanliness:"Cleanliness",easy_maintenance:"Easy maintenance",convenience:"Convenience",interaction:"Interaction",agency:"Agency",organisation:"Organisation",space_efficiency:"Space efficiency",aesthetics:"Aesthetics"};
+const SOURCE_TYPES = [
+  {v:"supplier_page", l:"Supplier / brand page", ev:"CLAIMED"},
+  {v:"customer_review", l:"Customer reviews", ev:"REPORTED"},
+  {v:"marketplace", l:"Marketplace listing", ev:"CLAIMED"},
+  {v:"internal_test", l:"Internal test notes", ev:"OBSERVED"},
+  {v:"image", l:"Image (URL)", ev:"OBSERVED"},
+];
+const COLLECTIONS = ["SLEEP","FEED","PLAY","WALK","CARE"];
+
+/* ============================= STATE ============================= */
+let state = { products: [], currentId: null, currentPricingScenarioId: {} };
+let inflight = false;
+let appInitialized = false;
+let creatingProduct = false;
+let initialized = false;
+
+/* ============================= STORAGE (via backend) ============================= */
+async function loadIndex(){
+  try{
+    const r = await apiStorage('get','product-index');
+    return r.value ? JSON.parse(r.value) : [];
+  }catch(e){ return []; }
+}
+async function saveIndex(idx){
+  await apiStorage('set','product-index', JSON.stringify(idx));
+}
+async function saveProduct(p){
+  const evidencesForStorage = (p.evidences||[]).map(e=>{
+    const { imageData, imageMediaType, ...rest } = e;
+    if(imageData) rest.hadPastedImage = true;
+    return rest;
+  });
+  const toSave = Object.assign({}, p, {evidences: evidencesForStorage});
+  await apiStorage('set','product:'+p.id, JSON.stringify(toSave));
+}
+async function loadProduct(id){
+  try{
+    const r = await apiStorage('get','product:'+id);
+    return r.value ? JSON.parse(r.value) : null;
+  }catch(e){ return null; }
+}
+
+/* ============================= CALCULATION ENGINE (deterministic, per spec §4-8) ============================= */
+function normalizedSignalScore(sig){
+  if(!sig || !sig.scorable) return null;
+  return ((sig.polarity*sig.strength)+4)/8*100;
+}
+function computeVA(signals){
+  let coveredWeight=0, totalWeight=0, vaRaw=0;
+  for(const t of SIGNAL_TYPES){
+    const w = CONFIG.va_signal_weights[t];
+    totalWeight += w;
+    const s = signals[t];
+    if(s && s.scorable){
+      coveredWeight += w;
+      vaRaw += w * (s.polarity*s.strength);
+    }
+  }
+  const maxCovered = 4*coveredWeight, minCovered=-4*coveredWeight;
+  const va = coveredWeight>0 ? ((vaRaw-minCovered)/(maxCovered-minCovered))*100 : null;
+  const coverage = (coveredWeight/totalWeight)*100;
+  let coverageStatus = "INSUFFICIENT";
+  if(coverage>=CONFIG.coverage_thresholds.full) coverageStatus="FULL";
+  else if(coverage>=CONFIG.coverage_thresholds.good) coverageStatus="GOOD";
+  else if(coverage>=CONFIG.coverage_thresholds.limited) coverageStatus="LIMITED";
+  const scorableConfs = SIGNAL_TYPES.filter(t=>signals[t]&&signals[t].scorable).map(t=>signals[t].confidence);
+  const confidence = scorableConfs.length ? scorableConfs.reduce((a,b)=>a+b,0)/scorableConfs.length : 0;
+  return {score:va, coverage, coverageStatus, confidence, coveredWeight, totalWeight};
+}
+function signalConfidence(sig){
+  if(!sig || !sig.scorable) return null;
+  return typeof sig.confidence === 'number' ? sig.confidence : null;
+}
+function computeDNA(signals){
+  const dc = CONFIG.dna_composition;
+  const interactionScore = normalizedSignalScore(signals['interaction']);
+  const interactionConf = signalConfidence(signals['interaction']);
+  const dims = {};
+  const dimsConfidence = {};
+  // direct 1:1 dimensions
+  dims.human_safety = normalizedSignalScore(signals['human_safety']);
+  dimsConfidence.human_safety = signalConfidence(signals['human_safety']);
+  dims.animal_safety = normalizedSignalScore(signals['animal_safety']);
+  dimsConfidence.animal_safety = signalConfidence(signals['animal_safety']);
+  dims.cleanliness = normalizedSignalScore(signals['cleanliness']);
+  dimsConfidence.cleanliness = signalConfidence(signals['cleanliness']);
+  dims.aesthetics = normalizedSignalScore(signals['aesthetics']);
+  dimsConfidence.aesthetics = signalConfidence(signals['aesthetics']);
+  // orderliness
+  {
+    const parts=[['organisation',dc.orderliness.organisation],['space_efficiency',dc.orderliness.space_efficiency]];
+    let sum=0,wsum=0,csum=0,cwsum=0;
+    parts.forEach(([t,w])=>{
+      const v=normalizedSignalScore(signals[t]); if(v!==null){sum+=w*v;wsum+=w;}
+      const c=signalConfidence(signals[t]); if(c!==null){csum+=w*c;cwsum+=w;}
+    });
+    dims.orderliness = wsum>0 ? sum/wsum : null;
+    dimsConfidence.orderliness = cwsum>0 ? csum/cwsum : null;
+  }
+  // pet_satisfaction: health_wellbeing .34, comfort .33, interaction_share .33 (interaction * split .5 for SCORE only; confidence uses the plain weight)
+  {
+    const compVal = interactionScore===null?null:interactionScore*dc.interaction_split.pet_satisfaction;
+    const parts=[['health_wellbeing',dc.pet_satisfaction.health_wellbeing,normalizedSignalScore(signals['health_wellbeing']),signalConfidence(signals['health_wellbeing'])],
+                 ['comfort',dc.pet_satisfaction.comfort,normalizedSignalScore(signals['comfort']),signalConfidence(signals['comfort'])],
+                 ['interaction_share',dc.pet_satisfaction.interaction_share,compVal,interactionConf]];
+    let sum=0,wsum=0,csum=0,cwsum=0;
+    parts.forEach(([_,w,v,c])=>{
+      if(v!==null){sum+=w*v;wsum+=w;}
+      if(c!==null){csum+=w*c;cwsum+=w;}
+    });
+    dims.pet_satisfaction = wsum>0 ? sum/wsum : null;
+    dimsConfidence.pet_satisfaction = cwsum>0 ? csum/cwsum : null;
+  }
+  // human_satisfaction: convenience .34, agency .33, interaction_share .33
+  {
+    const compVal = interactionScore===null?null:interactionScore*dc.interaction_split.human_satisfaction;
+    const parts=[['convenience',dc.human_satisfaction.convenience,normalizedSignalScore(signals['convenience']),signalConfidence(signals['convenience'])],
+                 ['agency',dc.human_satisfaction.agency,normalizedSignalScore(signals['agency']),signalConfidence(signals['agency'])],
+                 ['interaction_share',dc.human_satisfaction.interaction_share,compVal,interactionConf]];
+    let sum=0,wsum=0,csum=0,cwsum=0;
+    parts.forEach(([_,w,v,c])=>{
+      if(v!==null){sum+=w*v;wsum+=w;}
+      if(c!==null){csum+=w*c;cwsum+=w;}
+    });
+    dims.human_satisfaction = wsum>0 ? sum/wsum : null;
+    dimsConfidence.human_satisfaction = cwsum>0 ? csum/cwsum : null;
+  }
+  // overall A_D — renormalize over dims that are non-null
+  let sum=0,wsum=0,csum=0,cwsum=0;
+  for(const d in CONFIG.dna_weights){
+    if(dims[d]!==null && dims[d]!==undefined){ sum += CONFIG.dna_weights[d]*dims[d]; wsum += CONFIG.dna_weights[d]; }
+    if(dimsConfidence[d]!==null && dimsConfidence[d]!==undefined){ csum += CONFIG.dna_weights[d]*dimsConfidence[d]; cwsum += CONFIG.dna_weights[d]; }
+  }
+  const overall = wsum>0 ? sum/wsum : null;
+  const overallConfidence = cwsum>0 ? csum/cwsum : null;
+  const partial = wsum < 1 - 1e-9;
+  return {dims, dimsConfidence, overall, overallConfidence, partial};
+}
+function computeGate(signals, va, dna, hazardFlags){
+  const rejectReasons=[];
+  const holdReasons=[];
+  // 1. Hard safety reject triggers
+  const as = signals['animal_safety'], hs = signals['human_safety'];
+  const hardHazard = (as && as.scorable && as.polarity<0 && as.strength>=3) ||
+                      (hs && hs.scorable && hs.polarity<0 && hs.strength>=3) ||
+                      hazardFlags.verified_injury || hazardFlags.manufacturer_hazard_warning || hazardFlags.structural_failure_hazard;
+  if(hardHazard){
+    return {gate_status:"REJECT", reason_code:"CRITICAL_SAFETY_HAZARD", critical_flags:["hard_safety_trigger"]};
+  }
+  // 2. Overall evidence sufficiency
+  if(va.coverage < CONFIG.coverage_thresholds.limited || va.confidence < CONFIG.confidence_thresholds.hold_below){
+    return {gate_status:"HOLD", reason_code:"INSUFFICIENT_EVIDENCE", critical_flags:[]};
+  }
+  // 3. DNA thresholds
+  // IMPORTANT: missing evidence is not the same thing as a failed product attribute.
+  // NO_EVIDENCE => HOLD (we need more evidence); a measured score below its floor => REJECT.
+  const safetyHasValues = (as && as.scorable) || (hs && hs.scorable);
+  let safetyUnverified = false;
+  for(const d in CONFIG.dna_thresholds){
+    if(d==='overall') continue;
+    if((d==='human_safety' || d==='animal_safety') && safetyHasValues){
+      // Hard hazards are handled above. When safety evidence exists but does not clear the
+      // configured floor, track it as unverified so a SELECT decision can be capped at TEST.
+      const dimScore = dna.dims[d];
+      if(dimScore===null || dimScore < CONFIG.dna_thresholds[d]) safetyUnverified = true;
+      continue;
+    }
+    const score = dna.dims[d];
+    if(score===null){ holdReasons.push(d.toUpperCase()+"_NO_EVIDENCE"); continue; }
+    if(score < CONFIG.dna_thresholds[d]) rejectReasons.push(d.toUpperCase()+"_THRESHOLD_FAILED");
+  }
+
+  // Overall DNA is only a hard pass/fail gate when the full DNA is established.
+  // A partial DNA score is not evidence of failure: HOLD until the missing dimensions
+  // are evidenced. Only a complete Overall DNA below the floor produces REJECT.
+  if(dna.overall===null || dna.partial){
+    holdReasons.push(dna.overall===null ? "OVERALL_DNA_NO_EVIDENCE" : "OVERALL_DNA_PARTIAL");
+  } else {
+    // Compare at the displayed precision so an exact 70.0 is not rejected because of
+    // floating-point representation such as 69.99999999999999.
+    const overallForGate = Math.round(dna.overall * 10) / 10;
+    if(overallForGate < CONFIG.dna_thresholds.overall) rejectReasons.push("OVERALL_DNA_THRESHOLD_FAILED");
+  }
+
+  // A genuine threshold failure is a REJECT. Missing evidence is a HOLD.
+  if(rejectReasons.length){
+    const reasons=[...rejectReasons, ...holdReasons];
+    return {gate_status:"REJECT", reason_code:reasons.join(", "), critical_flags:reasons, safetyUnverified};
+  }
+  if(holdReasons.length){
+    return {gate_status:"HOLD", reason_code:holdReasons.join(", "), critical_flags:holdReasons, safetyUnverified};
+  }
+  return {gate_status:"PASS", reason_code:"", critical_flags:[], safetyUnverified};
+}
+function commercialNum(estimates, key){
+  const v = estimates ? estimates[key] : null;
+  return typeof v === 'number' ? Math.max(0, Math.min(100, v)) : 0;
+}
+function computeCommercial(estimates){
+  const marketDemand = commercialNum(estimates, 'market_demand');
+  const logistics = commercialNum(estimates, 'logistics');
+  const returnSizing = commercialNum(estimates, 'return_sizing');
+  const seasonality = commercialNum(estimates, 'seasonality');
+  const demonstrableValue = commercialNum(estimates, 'demonstrable_value');
+  return {marketDemand, logistics, returnSizing, seasonality, demonstrableValue};
+}
+function computeSelectionScore(va, comm){
+  const w = CONFIG.selection_weights;
+  const vaScore = va.score===null?0:va.score;
+  const s = w.va*vaScore + w.market_demand*comm.marketDemand +
+            w.logistics*comm.logistics + w.demonstrable_value*comm.demonstrableValue +
+            w.return_sizing*comm.returnSizing + w.seasonality*comm.seasonality;
+  return s;
+}
+function decisionFromScore(score, gate){
+  if(gate.gate_status!=="PASS") return gate.gate_status; // HOLD or REJECT overrides
+  const t = CONFIG.decision_thresholds;
+  let decision;
+  if(score>=t.select) decision = "SELECT";
+  else if(score>=t.test) decision = "TEST";
+  else if(score>=t.hold) decision = "HOLD";
+  else decision = "REJECT";
+  if(gate.safetyUnverified && decision==='SELECT') decision = "TEST"; // safety not confirmed above its floor — cap confidence at TEST, never full SELECT
+  return decision;
+}
+
+/* ============================= PRICING & MARGIN INTELLIGENCE ENGINE V1.0 (internal — Boss Tana only, same password gate) =============================
+   Design principles (per programmer handoff spec):
+   - Prices a transaction scenario (sourcing model × target market × commercial arrangement), not just a product.
+   - AI researches and explains; it never calculates margins. All financial arithmetic below is deterministic JS.
+   - No hard-coded 20% import / €0.80 packaging / 3% payment / 45% margin. Business thresholds are configurable
+     (loaded from Redis via the existing generic apiStorage, editable in the UI below).
+   - Every cost item carries a status: VERIFIED | ESTIMATED | ASSUMED | UNKNOWN. UNKNOWN is never treated as 0.
+   - Fully separate from Selection Engine V2: reads p.decision/p.score for context only, never writes into it,
+     and Selection Score never includes price/margin.
+   - Versioned: each run pushes a new scenario into p.pricing.scenarios — never overwrites a prior version. */
+
+const PRICING_COST_LABELS = {
+  product_cost:'Product cost', supplier_shipping:'Supplier / origin shipping', international_shipping:'International shipping',
+  customs_duty:'Customs duty', customs_clearance:'Customs clearance', import_related_cost:'Other import-related cost',
+  fulfilment:'Fulfilment', payment_processing:'Payment processing', platform_transaction_fee:'Platform transaction fee',
+  customer_shipping_subsidy:'Customer shipping subsidy', return_allowance:'Return allowance', refund_allowance:'Refund allowance',
+  damage_loss_allowance:'Damage / loss allowance', other_variable_cost:'Other variable cost'
+};
+const PRICING_APPLICABLE_KEYS = {
+  CHINA_DIRECT: ['product_cost','supplier_shipping','international_shipping','customs_duty','customs_clearance','import_related_cost','fulfilment','payment_processing','platform_transaction_fee','customer_shipping_subsidy','return_allowance','refund_allowance','damage_loss_allowance','other_variable_cost'],
+  EU_SUPPLIER: ['product_cost','supplier_shipping','fulfilment','payment_processing','platform_transaction_fee','customer_shipping_subsidy','return_allowance','refund_allowance','damage_loss_allowance','other_variable_cost']
+};
+
+/* ---- Incoterm → Cost Responsibility Map. Per the governing rule: "Incoterm determines
+   RESPONSIBILITY. It does not automatically prove a cost is INCLUDED in the supplier's quoted
+   price." This map is informational only (who normally bears the cost under this arrangement) —
+   it is never used to auto-set a cost's status to INCLUDED. INCLUDED is reserved for cases where
+   there is actual evidence (a founder-confirmed quote, or the AI citing specific evidence), never
+   inferred from the Incoterm alone. Never asserts anything for arrangement UNKNOWN either. */
+const INCOTERM_RESPONSIBILITY_LABELS = {
+  CHINA_DIRECT: {
+    DDP: {supplier_shipping:'Supplier responsibility (verify inclusion in quote)', international_shipping:'Supplier responsibility (verify inclusion in quote)', customs_duty:'Supplier responsibility (verify inclusion in quote)', customs_clearance:'Supplier responsibility (verify inclusion in quote)', import_related_cost:'Supplier responsibility (verify inclusion in quote)'},
+    DAP: {supplier_shipping:'Supplier responsibility (verify inclusion in quote)', international_shipping:'Supplier responsibility (verify inclusion in quote)', customs_duty:'Aino Home responsibility / verify', customs_clearance:'Aino Home responsibility / verify', import_related_cost:'Aino Home responsibility / verify'},
+    EXW: {supplier_shipping:'Aino Home responsibility / verify', international_shipping:'Aino Home responsibility / verify', customs_duty:'Aino Home responsibility / verify', customs_clearance:'Aino Home responsibility / verify', import_related_cost:'Aino Home responsibility / verify'},
+    UNKNOWN: {supplier_shipping:'Uncertain / verify', international_shipping:'Uncertain / verify', customs_duty:'Uncertain / verify', customs_clearance:'Uncertain / verify', import_related_cost:'Uncertain / verify'}
+  },
+  EU_SUPPLIER: {
+    DDP: {supplier_shipping:'Supplier responsibility (verify inclusion in quote)'},
+    DAP: {supplier_shipping:'Aino Home responsibility / verify'},
+    EXW: {supplier_shipping:'Aino Home responsibility / verify'},
+    UNKNOWN: {supplier_shipping:'Uncertain / verify'}
+  }
+};
+function computeCostResponsibility(sourcing_model, commercial_arrangement){
+  const labels = (INCOTERM_RESPONSIBILITY_LABELS[sourcing_model] && INCOTERM_RESPONSIBILITY_LABELS[sourcing_model][commercial_arrangement]) || {};
+  return Object.keys(labels).map(k=>({key:k, label:PRICING_COST_LABELS[k], responsibility:labels[k]}));
+}
+
+/* ---- VAT treatment: transaction-specific, deterministic — never a blanket "VAT is not a cost".
+   Always carries requires_verification since none of these are actually confirmed yet — VAT
+   treatment is never presented as fully resolved on the strength of a plausible assumption alone. */
+function determineVatTreatment(sourcing_model, target_market){
+  const tm = (target_market||'').toLowerCase();
+  if(sourcing_model==='EU_SUPPLIER' && (tm.includes('finland')||tm.includes('eu')||tm.includes('sweden')||tm.includes('denmark'))){
+    return {status:'ASSUMED', requires_verification:true, note:`EU-to-${target_market||'EU'} B2C sale — Finnish/destination VAT assumed collected at checkout via Shopify's EU OSS registration and remitted by Shopify; treated as pass-through, excluded from contribution economics below. Not yet verified — confirm Shopify's OSS setup actually covers this specific flow.`};
+  }
+  if(sourcing_model==='CHINA_DIRECT'){
+    return {status:'ASSUMED', requires_verification:true, note:'China-direct import — import VAT assumed collected at checkout via Shopify and remitted under IOSS (consignments ≤€150) or paid at customs otherwise; treated as pass-through, excluded from contribution economics below. Not yet verified — confirm shipment value and IOSS coverage for this specific order.'};
+  }
+  return {status:'UNKNOWN', requires_verification:true, note:'VAT treatment for this sourcing model / target market combination has not been established — verify before treating the margin figures below as final.'};
+}
+
+/* ---- Business configuration: configurable, not hard-coded. Persisted via existing generic /api/storage. ---- */
+/* Real figures on file for Aino Home (2026-09-16): Shopify €32/mo, Procountor €116.46/mo,
+   Zoner domain €31.38/yr (~€2.62/mo) → overhead ≈ €151.08/mo. Target margin policy = 50% gross.
+   min_confidence_pct and expected_monthly_orders_per_sku have no recorded business figure yet —
+   left as clearly-flagged placeholders; adjust in the in-app "Business thresholds" panel once known. */
+const PRICING_CONFIG_DEFAULTS = {
+  min_contribution_margin_pct: {value:50, type:'SOFT', label:'Minimum contribution margin % (Aino Home target margin policy)'},
+  min_confidence_pct: {value:35, type:'HARD', label:'Minimum confidence to act on a scenario % (placeholder — no business figure on file)'},
+  monthly_operating_overhead_eur: {value:151.08, type:'INFORMATIONAL', label:'Monthly operating overhead (€) — Shopify €32 + Procountor €116.46 + Zoner domain €31.38/yr'},
+  expected_monthly_orders_per_sku: {value:20, type:'INFORMATIONAL', label:'Expected monthly orders per SKU (placeholder — no order-volume figure on file)'},
+  max_customer_price_eur: {value:null, type:'INFORMATIONAL', label:'Maximum acceptable customer price (€, optional)'}
+};
+/* Worst-case payment cost, deliberately conservative: compares Shopify Basic (2.9%+$0.30),
+   Paytrail S-Package (3.25-3.5%+€0.50), and PayPal (2.99-4.99%+~$0.49) across Aino Home's
+   realistic order values — PayPal Pay Later's 4.99%+~€0.49 is highest across that range,
+   so it's used as the calculation formula regardless of which processor is finally chosen.
+   Fixed fee is PayPal's stated ~$0.49 treated as €0.49 (FX not material at this precision).
+   This is deliberately kept separate from platform_transaction_fee (fix #10) — the latter is
+   only for an ADDITIONAL channel fee on top of this, never a re-estimate of the same charge. */
+const AINO_PAYMENT_FORMULA = {pct: 4.99, fixed_eur: 0.49, source: 'PayPal Pay Later — conservative worst-case among Shopify/Paytrail/PayPal options on file'};
+const AINO_KNOWN_BUSINESS_FACTS = {
+  customs_duty_china: {amount_eur: 3.00, basis: 'Confirmed Aino Home customs policy: €3 flat per goods-item batch — applies once per distinct product type per shipment. Verify batch composition matches this assumption for the specific order.', source:'Aino Home confirmed customs terms'},
+  last_mile_delivery: {amount_eur: +(0.84*1.255).toFixed(2), basis: 'Posti/Matkahuolto locker pickup €0.84 + 25.5% VAT on the fee', source:'Aino Home confirmed carrier rate'}
+};
+let pricingBusinessConfig = JSON.parse(JSON.stringify(PRICING_CONFIG_DEFAULTS));
+async function loadPricingConfig(){
+  try{
+    const r = await apiStorage('get','pricing-business-config');
+    if(r && r.value){
+      pricingBusinessConfig = {...JSON.parse(JSON.stringify(PRICING_CONFIG_DEFAULTS)), ...JSON.parse(r.value)};
+    }
+  }catch(e){ /* keep defaults on any error */ }
+  return pricingBusinessConfig;
+}
+async function savePricingConfig(cfg){
+  pricingBusinessConfig = cfg;
+  await apiStorage('set','pricing-business-config', JSON.stringify(cfg));
+}
+
+/* Valid statuses (fix #2): VERIFIED, ESTIMATED, ASSUMED, INCLUDED, UNKNOWN.
+   INCLUDED = confirmed already covered inside another quoted price (e.g. supplier's DDP quote) —
+   distinct from a genuinely-zero cost and from an unresolved UNKNOWN. amount is 0 for INCLUDED,
+   null for UNKNOWN — the two must never be conflated. */
+function costItem(amount, status, basis, source){
+  const n = (amount===null||amount===undefined||amount===''||isNaN(amount)) ? null : Number(amount);
+  return {amount:n, currency:'EUR', status: n===null ? 'UNKNOWN' : status, basis:basis||'', source:source||''};
+}
+
+/* ---- AI prompt: research only. No margin math, no price recommendation, no invented confidence. ---- */
+function buildPricingPromptContent(p, scenarioInput, knownCosts, applicableKeys){
+  const missingKeys = applicableKeys.filter(k=> !knownCosts[k]); // anything already known (any status) is not re-researched
+  const knownSummary = applicableKeys.filter(k=>knownCosts[k])
+    .map(k=>`- ${PRICING_COST_LABELS[k]}: ${knownCosts[k].amount!==null ? '€'+knownCosts[k].amount : '(no separate charge)'} — ${knownCosts[k].status} (${knownCosts[k].source||'founder-provided'}${knownCosts[k].basis?': '+knownCosts[k].basis:''})`).join('\n') || '(none provided beyond product cost)';
+  const promptText = `You are a pricing research analyst for Aino Home, a curated pet-home e-commerce store.
+
+TRANSACTION SCENARIO
+Product: ${p.name || 'Untitled'}
+Category: ${p.collection || 'unspecified'}
+Sourcing model: ${scenarioInput.sourcing_model}
+Source country: ${p.source_country || 'unspecified'}
+Target market: ${scenarioInput.target_market || 'Finland'}
+Commercial arrangement / Incoterm: ${scenarioInput.commercial_arrangement || 'UNKNOWN'}
+${p.decision ? `(Context only, do not use in cost/price research — Selection Engine result: ${p.decision})` : ''}
+
+ALREADY RESOLVED — do not re-estimate, do not duplicate, do not contradict:
+${knownSummary}
+Note: payment_processing above is a fixed formula (% of selling price + fixed fee) already accounted for separately — platform_transaction_fee, if you estimate it, must be an ADDITIONAL channel/cart charge on top of that, never a re-statement of the same payment-processor fee. If no such additional fee applies, mark platform_transaction_fee INCLUDED (amount 0) or UNKNOWN, never a duplicate of payment processing.
+
+YOUR TASK — RESEARCH ONLY. DO NOT CALCULATE MARGINS. DO NOT RECOMMEND A PRICE. DO NOT INVENT A CONFIDENCE NUMBER.
+
+1. MARKET COMPARABLES: find 3-6 comparable products currently sold in ${scenarioInput.target_market || 'Finland'} (or a closely comparable EU/Nordic market if direct evidence is thin). For each, capture brand, market, product, characteristics, price, currency, positioning, source, and — important — date_observed: state as specifically as you can when this price applied (a date, a quarter, or explicitly "as of AI knowledge cutoff, not live-verified" if you cannot confirm it is current). Classify strength as DIRECT_COMPARABLE, PARTIAL_COMPARABLE, or WEAK_REFERENCE. Then summarize market_low / market_mid / market_high (EUR) — derive this from the specific comparables you found, don't just average arbitrary global prices. You have no live web access — treat everything here as reference evidence from your training knowledge, not a real-time price check, and say so via date_observed rather than implying it is current.
+
+2. COST ESTIMATES for items not already resolved — ${missingKeys.map(k=>PRICING_COST_LABELS[k]).join(', ') || '(all already resolved)'} — for this specific sourcing model and commercial arrangement. The Incoterm tells you who TYPICALLY bears each cost, but that is not proof the cost is actually included in this specific supplier's quoted price — do not mark something INCLUDED just because the Incoterm makes it plausible. Only use INCLUDED when you have an actual, specific reason to believe it (e.g. it was stated as already known/included above); otherwise use ASSUMED (state the Incoterm-typical assumption explicitly) or UNKNOWN. For each, choose the status carefully:
+   - VERIFIED: use ONLY if you have specific, concrete evidence this exact figure applies to THIS transaction scenario — not a generic industry number. Most of your estimates should NOT be VERIFIED.
+   - ESTIMATED: a reasonable research-based estimate for this scenario.
+   - ASSUMED: no direct evidence, an industry-typical assumption — say so explicitly.
+   - INCLUDED: you have reason to believe this is already covered inside another quoted cost (e.g. the supplier's arrangement) — explain why in basis.
+   - UNKNOWN: insufficient basis — return amount null, never invent a number just to fill the field.
+   For every ESTIMATED or ASSUMED item with a formulaic basis (e.g. a return-rate percentage applied to an average order/replacement cost), show the derivation as a short calculation string, e.g. "9% return rate × €27.50 avg replacement cost = €2.48, rounded €2.50" — not just the final number.
+
+3. List assumptions, unknowns, and flags a human should double-check (e.g. thin comparable data, ambiguous Incoterm, elevated return risk for this product category, VAT/import-VAT treatment uncertainty).
+
+Return ONLY strict, valid, minified JSON, no markdown fences, no explanation outside the JSON, matching exactly this shape:
+{"market":{"comparables":[{"brand":"","market":"","product":"","characteristics":"","price":0,"currency":"EUR","positioning":"","source":"","date_observed":"","strength":"DIRECT_COMPARABLE"}],"low":0,"mid":0,"high":0},"cost_estimates":{${missingKeys.map(k=>`"${k}":{"amount":0,"status":"ESTIMATED","basis":"","derivation":"","source":""}`).join(',')}},"assumptions":[],"unknowns":[],"flags":[]}`;
+  return [{type:'text', text: promptText}];
+}
+
+/* ---- Deterministic economics (never performed by the AI) ---- */
+function computeScenarioTier(name, sellingPrice, baseVariableCost, cfg, marketDataAvailable, paymentFormula){
+  if(!marketDataAvailable || sellingPrice===null || sellingPrice===undefined){
+    return {name, status:'INSUFFICIENT_EVIDENCE', selling_price:null, payment_cost:null, contribution_profit:null, contribution_margin_pct:null, allocated_overhead:null, operating_profit:null, operating_margin_pct:null};
+  }
+  const maxPrice = cfg.max_customer_price_eur && cfg.max_customer_price_eur.value;
+  if(maxPrice && sellingPrice > maxPrice){
+    return {name, status:'MARKET_CONSTRAINED', selling_price:+sellingPrice.toFixed(2), payment_cost:null, contribution_profit:null, contribution_margin_pct:null, allocated_overhead:null, operating_profit:null, operating_margin_pct:null};
+  }
+  const paymentCost = +((sellingPrice*paymentFormula.pct/100) + paymentFormula.fixed_eur).toFixed(2);
+  const totalVariableCostAtPrice = +(baseVariableCost + paymentCost).toFixed(2);
+  const contributionProfit = +(sellingPrice - totalVariableCostAtPrice).toFixed(2);
+  const contributionMarginPct = +((contributionProfit/sellingPrice)*100).toFixed(1);
+  if(sellingPrice <= totalVariableCostAtPrice){
+    return {name, status:'NOT_SUPPORTED', selling_price:+sellingPrice.toFixed(2), payment_cost:paymentCost, contribution_profit:contributionProfit, contribution_margin_pct:contributionMarginPct, allocated_overhead:null, operating_profit:null, operating_margin_pct:null};
+  }
+  const overhead = cfg.monthly_operating_overhead_eur.value / Math.max(1, cfg.expected_monthly_orders_per_sku.value);
+  const operatingProfit = +(contributionProfit - overhead).toFixed(2);
+  const operatingMarginPct = +((operatingProfit/sellingPrice)*100).toFixed(1);
+  const status = contributionMarginPct < cfg.min_contribution_margin_pct.value ? 'ECONOMICALLY_CONSTRAINED' : 'SUPPORTED';
+  return {name, status, selling_price:+sellingPrice.toFixed(2), payment_cost:paymentCost, contribution_profit:contributionProfit, contribution_margin_pct:contributionMarginPct, allocated_overhead:+overhead.toFixed(2), operating_profit:operatingProfit, operating_margin_pct:operatingMarginPct};
+}
+function computeScenarioConfidence(cost, applicableKeys, market){
+  // INCLUDED counts nearly as confidently-resolved as VERIFIED — it's a confirmed non-charge, not an unknown.
+  const statusWeight = {VERIFIED:1, INCLUDED:0.9, ESTIMATED:0.6, ASSUMED:0.4, UNKNOWN:0};
+  const costScore = applicableKeys.length ? (applicableKeys.reduce((sum,k)=> sum + (statusWeight[cost[k].status]||0), 0) / applicableKeys.length) * 100 : 0;
+  const strengthWeight = {DIRECT_COMPARABLE:1, PARTIAL_COMPARABLE:0.6, WEAK_REFERENCE:0.3};
+  const comparables = (market && market.comparables) || [];
+  const avgStrength = comparables.length ? comparables.reduce((s,c)=>s+(strengthWeight[c.strength]||0.3),0)/comparables.length : 0;
+  const marketScore = Math.min(100, avgStrength * 100 * Math.min(1, comparables.length/3));
+  return Math.round(costScore*0.6 + marketScore*0.4);
+}
+/* Governing rule: "Best Available Scenario must never be presented as the Aino Home Recommended
+   Price when it fails the configured target." Only tiers with status SUPPORTED may become the
+   recommendation. If none qualify, reference_price is null and status is NOT_SUPPORTED — the
+   strongest available tier is reported separately as best_available (with the margin gap), never
+   disguised as a recommendation. If only Premium qualifies, it's flagged for validation rather than
+   presented as a settled number (market reference ≠ confirmed Aino Home price). */
+function computeRecommendation(tiers, cfg){
+  const supported = tiers.filter(t=>t.status==='SUPPORTED');
+  if(supported.length){
+    const reference = supported.reduce((a,b)=> a.selling_price<b.selling_price ? a : b); // most competitive price that clears the bar
+    const requiresValidation = reference.name==='Premium';
+    return {
+      status: 'SUPPORTED',
+      min_price: Math.min(...supported.map(t=>t.selling_price)),
+      max_price: Math.max(...supported.map(t=>t.selling_price)),
+      reference_price: reference.selling_price, reference_tier: reference.name,
+      requires_validation: requiresValidation,
+      note: requiresValidation ? 'Only the Premium scenario currently meets the margin target — this reflects a market reference price point, not a confirmed Aino Home price. Validate product differentiation, materials, and comparable strength before committing to premium positioning.' : '',
+      best_available: null
+    };
+  }
+  // No tier meets the target — never present one as "recommended". Surface the strongest
+  // available tier separately, with an explicit gap to the target, so the founder sees the real
+  // economics without it being mistaken for a settled recommendation.
+  const withEconomics = tiers.filter(t=> t.selling_price!==null && t.contribution_margin_pct!==null);
+  let bestAvailable = null;
+  if(withEconomics.length){
+    const best = withEconomics.reduce((a,b)=> b.contribution_margin_pct>a.contribution_margin_pct ? b : a);
+    bestAvailable = {tier: best.name, price: best.selling_price, contribution_margin_pct: best.contribution_margin_pct, target_pct: cfg.min_contribution_margin_pct.value, gap_pct: +(best.contribution_margin_pct - cfg.min_contribution_margin_pct.value).toFixed(1)};
+  }
+  return {status:'NOT_SUPPORTED', min_price:null, max_price:null, reference_price:null, reference_tier:null, requires_validation:false, note:'No pricing tier currently meets the configured contribution-margin target under this transaction scenario.', best_available: bestAvailable};
+}
+/* Confidence measures evidence strength; readiness measures whether the recommendation is ready
+   to act on — these are deliberately different concepts (a high-confidence NOT_SUPPORTED scenario
+   is not "ready", and a SUPPORTED-but-Premium-only scenario needs review despite decent confidence). */
+function computeRecommendationReadiness(recommendation, provisional){
+  if(recommendation.status!=='SUPPORTED') return 'NOT_SUPPORTED';
+  if(recommendation.requires_validation || provisional) return 'REVIEW';
+  return 'READY';
+}
+/* Fix #4: the commercial decision now reasons about the SAME reference tier the recommendation
+   reports (never an independently-selected "highest margin" tier), so the two sections can never
+   disagree the way the EU test run did (recommendation showing €64.95 while the PROCEED rationale
+   was actually driven by the €99.90 Premium tier). Fix #1/#6: provisional unresolved-cost costs
+   are surfaced in the rationale, not hidden behind a clean-looking PROCEED. */
+function computeCommercialDecision(p, scenario, cfg){
+  if(!scenario) return null;
+  const provisionalNote = scenario.provisional ? ` (provisional — unresolved: ${(scenario.unknowns||[]).slice(0,3).join('; ')}${(scenario.unknowns||[]).length>3?', …':''})` : '';
+  if(scenario.confidence < cfg.min_confidence_pct.value){
+    return {status:'HOLD', rationale:`Confidence ${scenario.confidence}% is below the required minimum ${cfg.min_confidence_pct.value}% (hard constraint) — gather more evidence before deciding.${provisionalNote}`};
+  }
+  // Pricing is a separate transaction decision. A product HOLD/REJECT must not
+  // automatically suppress the economics analysis; the two engines answer different questions.
+  // Defensive: if the stored recommendation is missing current fields (older saved scenario) or
+  // doesn't match this scenario's own tiers, recompute it fresh rather than trusting a
+  // foreign/incomplete shape — this can never again throw or silently misreport on old data.
+  let rec = scenario.recommendation;
+  let refTier = (rec && rec.status==='SUPPORTED') ? (scenario.pricing_scenarios||[]).find(t=>t.name===rec.reference_tier) : null;
+  if(!rec || rec.status===undefined || (rec.status==='SUPPORTED' && !refTier)){
+    rec = computeRecommendation(scenario.pricing_scenarios||[], cfg);
+    refTier = rec.status==='SUPPORTED' ? (scenario.pricing_scenarios||[]).find(t=>t.name===rec.reference_tier) : null;
+  }
+  if(rec.status!=='SUPPORTED' || !refTier){
+    const ba = rec.best_available;
+    const gapText = ba ? ` Best available: ${ba.tier} at €${ba.price.toFixed(2)}, ${ba.contribution_margin_pct}% margin (target ${ba.target_pct}%, gap ${ba.gap_pct>0?'+':''}${ba.gap_pct}pp).` : '';
+    return {status:'NOT_SUPPORTED', rationale:`No pricing tier currently meets the ${cfg.min_contribution_margin_pct.value}% margin target under this transaction scenario.${gapText}${provisionalNote} This does not mean the product itself is rejected — the current scenario simply does not support a recommendation.`};
+  }
+  if(rec.requires_validation){
+    return {status:'REVIEW', rationale:`${rec.reference_tier} at €${rec.reference_price} is the only scenario meeting the margin target (${refTier.contribution_margin_pct}% contribution). ${rec.note}${provisionalNote}`};
+  }
+  return {status:'PROCEED', rationale:`${rec.reference_tier} at €${rec.reference_price} supports ${refTier.contribution_margin_pct}% contribution margin (≥ ${cfg.min_contribution_margin_pct.value}% target) at ${scenario.confidence}% confidence.${provisionalNote}`};
+}
+
+async function runPricingAnalysis(p){
+  if(inflight) return;
+  await loadPricingConfig();
+  const cfg = pricingBusinessConfig;
+
+  const costInput = document.getElementById('supplierCostInput');
+  const countryInput = document.getElementById('sourceCountryInput');
+  const sourcingSelect = document.getElementById('sourcingModelSelect');
+  const marketInput = document.getElementById('targetMarketInput');
+  const arrangementSelect = document.getElementById('commercialArrangementSelect');
+  const shippingInput = document.getElementById('knownShippingInput');
+  const dutyInput = document.getElementById('knownDutyInput');
+  const otherInput = document.getElementById('knownOtherCostInput');
+
+  if(costInput) p.supplier_cost_eur = costInput.value ? parseFloat(costInput.value) : null;
+  if(countryInput) p.source_country = countryInput.value || '';
+  const sourcing_model = sourcingSelect ? sourcingSelect.value : 'CHINA_DIRECT';
+  const target_market = marketInput ? (marketInput.value.trim()||'Finland') : 'Finland';
+  const commercial_arrangement = arrangementSelect ? arrangementSelect.value : 'UNKNOWN';
+
+  const pricingErrBox = document.getElementById('pricingErrBox');
+  if(pricingErrBox) pricingErrBox.innerHTML = '';
+  if(!p.supplier_cost_eur || p.supplier_cost_eur <= 0){
+    if(pricingErrBox) pricingErrBox.innerHTML = `<div class="error-box">Enter a product/supplier cost (€) before running pricing analysis.</div>`;
+    return;
+  }
+
+  const applicableKeys = PRICING_APPLICABLE_KEYS[sourcing_model] || PRICING_APPLICABLE_KEYS.CHINA_DIRECT;
+  const knownCosts = {};
+  knownCosts.product_cost = costItem(p.supplier_cost_eur, 'VERIFIED', 'Founder-provided supplier cost', 'Founder input');
+  if(shippingInput && shippingInput.value) knownCosts.supplier_shipping = costItem(parseFloat(shippingInput.value), 'VERIFIED', 'Founder-provided shipping quotation', 'Founder input');
+  if(dutyInput && dutyInput.value) knownCosts.customs_duty = costItem(parseFloat(dutyInput.value), 'VERIFIED', 'Founder-provided duty figure', 'Founder input');
+  if(otherInput && otherInput.value) knownCosts.other_variable_cost = costItem(parseFloat(otherInput.value), 'VERIFIED', 'Founder-provided other variable cost', 'Founder input');
+  // Aino Home's own confirmed terms — always known, never left to AI research/estimation.
+  if(!knownCosts.customs_duty && sourcing_model==='CHINA_DIRECT'){
+    knownCosts.customs_duty = costItem(AINO_KNOWN_BUSINESS_FACTS.customs_duty_china.amount_eur, 'VERIFIED', AINO_KNOWN_BUSINESS_FACTS.customs_duty_china.basis, AINO_KNOWN_BUSINESS_FACTS.customs_duty_china.source);
+  }
+  if(!knownCosts.customer_shipping_subsidy){
+    knownCosts.customer_shipping_subsidy = costItem(AINO_KNOWN_BUSINESS_FACTS.last_mile_delivery.amount_eur, 'VERIFIED', AINO_KNOWN_BUSINESS_FACTS.last_mile_delivery.basis, AINO_KNOWN_BUSINESS_FACTS.last_mile_delivery.source);
+  }
+  knownCosts.payment_processing = {amount:null, currency:'EUR', status:'VERIFIED', basis:`${AINO_PAYMENT_FORMULA.pct}% + €${AINO_PAYMENT_FORMULA.fixed_eur.toFixed(2)} of selling price`, source:AINO_PAYMENT_FORMULA.source};
+  // Note: the Incoterm/commercial_arrangement is passed to the AI prompt as context on typical
+  // responsibility, but no cost is ever auto-marked INCLUDED here just because the arrangement
+  // implies a supplier normally bears it — INCLUDED requires actual evidence (see prompt below).
+
+  inflight = true;
+  renderConsole(p);
+  try{
+    const scenarioInput = {sourcing_model, target_market, commercial_arrangement};
+    const content = buildPricingPromptContent(p, scenarioInput, knownCosts, applicableKeys);
+    // Pricing prompt asks for market research + cost estimates across up to ~10 line items at once —
+    // heavier than Selection's prompt. With DeepSeek's extended reasoning on, that can burn through
+    // the server's 8000-token floor (api/assess.js) before writing the actual JSON answer, causing
+    // "ran out of tokens on internal reasoning". Request well above that floor so it actually raises.
+    const result = await callClaude(content, 12000);
+
+    const cost = {};
+    applicableKeys.forEach(k=>{
+      if(knownCosts[k]){ cost[k] = knownCosts[k]; }
+      else if(result.cost_estimates && result.cost_estimates[k] && result.cost_estimates[k].amount!==undefined && result.cost_estimates[k].amount!==null){
+        const ce = result.cost_estimates[k];
+        cost[k] = costItem(ce.amount, ce.status||'ESTIMATED', ce.basis||'', ce.source||'AI research');
+        cost[k].derivation = ce.derivation || ''; // fix #9 — traceable calculation, not just a final number
+      } else if(result.cost_estimates && result.cost_estimates[k] && result.cost_estimates[k].status==='INCLUDED'){
+        cost[k] = costItem(0, 'INCLUDED', result.cost_estimates[k].basis||'', result.cost_estimates[k].source||'AI research');
+      } else {
+        cost[k] = costItem(null, 'UNKNOWN', '', '');
+      }
+    });
+    // Fix #1: UNKNOWN is never treated as €0 — excluded from the sum entirely (not counted as zero),
+    // and tracked separately so the resulting margin can be marked provisional.
+    const total_variable_cost = +applicableKeys.reduce((sum,k)=> sum + (cost[k].status!=='UNKNOWN' && typeof cost[k].amount==='number' ? cost[k].amount : 0), 0).toFixed(2);
+    const unknownKeys = applicableKeys.filter(k=>cost[k].status==='UNKNOWN');
+    const provisional = unknownKeys.length > 0;
+
+    const market = result.market || {comparables:[], low:null, mid:null, high:null};
+    const marketDataAvailable = typeof market.low==='number' && typeof market.mid==='number' && typeof market.high==='number';
+
+    const tiers = [
+      computeScenarioTier('Market Entry', marketDataAvailable?market.low:null, total_variable_cost, cfg, marketDataAvailable, AINO_PAYMENT_FORMULA),
+      computeScenarioTier('Core Aino Home', marketDataAvailable?market.mid:null, total_variable_cost, cfg, marketDataAvailable, AINO_PAYMENT_FORMULA),
+      computeScenarioTier('Premium', marketDataAvailable?market.high:null, total_variable_cost, cfg, marketDataAvailable, AINO_PAYMENT_FORMULA)
+    ];
+
+    const confidence = computeScenarioConfidence(cost, applicableKeys, market);
+    const recommendation = computeRecommendation(tiers, cfg);
+    const unknowns = [...unknownKeys.map(k=>PRICING_COST_LABELS[k]+' (cost — no reliable basis found)'), ...(result.unknowns||[])];
+    const vat_treatment = determineVatTreatment(sourcing_model, target_market);
+    const cost_responsibility = computeCostResponsibility(sourcing_model, commercial_arrangement);
+    const recommendation_readiness = computeRecommendationReadiness(recommendation, provisional);
+
+    if(!p.pricing || !Array.isArray(p.pricing.scenarios)) p.pricing = {scenarios:[]};
+    const version = p.pricing.scenarios.length + 1;
+    const scenario = {
+      scenario_id: uid(), version, product_id: p.id,
+      sourcing_model, source_country: p.source_country, target_market, commercial_arrangement,
+      cost, total_variable_cost, provisional, market, pricing_scenarios: tiers,
+      vat_treatment, cost_responsibility, recommendation_readiness,
+      economics: (()=>{
+        const overhead = cfg.monthly_operating_overhead_eur.value / Math.max(1,cfg.expected_monthly_orders_per_sku.value);
+        const payFactor = 1 - (AINO_PAYMENT_FORMULA.pct/100);
+        return {
+          break_even_variable_price: +((total_variable_cost + AINO_PAYMENT_FORMULA.fixed_eur) / payFactor).toFixed(2),
+          break_even_operating_price: +((total_variable_cost + AINO_PAYMENT_FORMULA.fixed_eur + overhead) / payFactor).toFixed(2)
+        };
+      })(),
+      confidence, assumptions: result.assumptions||[], unknowns, flags: result.flags||[], recommendation,
+      created_at: Date.now(), analyzed_at: Date.now()
+    };
+
+    p.pricing.scenarios.push(scenario); // versioned — never overwrite a prior scenario
+    state.currentPricingScenarioId[p.id] = scenario.scenario_id;
+    p.updated_at = Date.now();
+    await saveProduct(p);
+    await persistIndex();
+  }catch(e){
+    const msg = e.message || String(e);
+    inflight = false;
+    renderConsole(p);
+    const box = document.getElementById('pricingErrBox');
+    if(box) box.innerHTML = `<div class="error-box">Pricing analysis failed: ${escapeHtml(msg)}</div>`;
+    return;
+  }finally{
+    inflight = false;
+  }
+  renderConsole(p);
+}
+
+/* ---- UI ---- */
+function pricingStatusBadge(status){
+  const map = {
+    VERIFIED:['var(--moss)','VERIFIED'], INCLUDED:['var(--moss)','INCLUDED'], ESTIMATED:['#b8860b','ESTIMATED'], ASSUMED:['#b8860b','ASSUMED'], UNKNOWN:['var(--rust)','UNKNOWN'],
+    SUPPORTED:['var(--moss)','SUPPORTED'], ECONOMICALLY_CONSTRAINED:['#b8860b','ECON. CONSTRAINED'], MARKET_CONSTRAINED:['#b8860b','MARKET CONSTRAINED'],
+    INSUFFICIENT_EVIDENCE:['var(--ink-muted)','INSUFFICIENT EVIDENCE'], NOT_SUPPORTED:['var(--rust)','NOT SUPPORTED'],
+    READY:['var(--moss)','READY'], REVIEW:['#b8860b','REVIEW'],
+    DIRECT_COMPARABLE:['var(--moss)','DIRECT'], PARTIAL_COMPARABLE:['#b8860b','PARTIAL'], WEAK_REFERENCE:['var(--ink-muted)','WEAK']
+  };
+  const hit = map[status] || ['var(--ink-muted)', status||'—'];
+  return `<span style="color:${hit[0]};font-weight:600;font-size:11px;">${hit[1]}</span>`;
+}
+function pricingSettingsHtml(cfg){
+  return `
+  <details style="margin-bottom:16px;">
+    <summary style="cursor:pointer;font-size:12px;color:var(--ink-muted);">Business thresholds (configurable — not hard-coded)</summary>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;">
+      <div><label style="font-size:11px;color:var(--ink-muted);">Min contribution margin % (soft)</label><br><input type="number" id="cfgMinMargin" value="${cfg.min_contribution_margin_pct.value}" style="width:90px;"></div>
+      <div><label style="font-size:11px;color:var(--ink-muted);">Min confidence % (hard)</label><br><input type="number" id="cfgMinConfidence" value="${cfg.min_confidence_pct.value}" style="width:90px;"></div>
+      <div><label style="font-size:11px;color:var(--ink-muted);">Monthly overhead (€)</label><br><input type="number" id="cfgOverhead" value="${cfg.monthly_operating_overhead_eur.value}" style="width:90px;"></div>
+      <div><label style="font-size:11px;color:var(--ink-muted);">Expected orders/mo/SKU</label><br><input type="number" id="cfgOrders" value="${cfg.expected_monthly_orders_per_sku.value}" style="width:90px;"></div>
+    </div>
+    <button class="ghost-btn" id="savePricingCfgBtn" style="margin-top:8px;">Save thresholds</button>
+  </details>`;
+}
+function costBreakdownTableHtml(scenario){
+  const keys = PRICING_APPLICABLE_KEYS[scenario.sourcing_model] || [];
+  const rows = keys.map(k=>{
+    const c = scenario.cost[k];
+    const amt = c.amount===null ? '—' : '€'+c.amount.toFixed(2);
+    const note = [c.basis, c.derivation].filter(Boolean).map(escapeHtml).join(' — ');
+    return `<tr><td>${PRICING_COST_LABELS[k]}</td><td>${amt}</td><td>${pricingStatusBadge(c.status)}</td><td style="font-size:11px;color:var(--ink-muted);">${note}</td></tr>`;
+  }).join('');
+  const provisionalNote = scenario.provisional
+    ? `<div class="flag amber" style="margin-top:8px;">⚠ Provisional — based on currently quantified costs only. Unresolved: ${scenario.unknowns.filter(u=>u.includes('cost')).map(u=>escapeHtml(u)).join('; ') || 'see Uncertainty section below'}.</div>`
+    : '';
+  return `<table class="score-table"><tr><td><strong>Cost item</strong></td><td><strong>Amount</strong></td><td><strong>Status</strong></td><td><strong>Basis / derivation</strong></td></tr>${rows}<tr><td>Total variable cost (excl. payment processing)</td><td>€${scenario.total_variable_cost.toFixed(2)}</td><td colspan="2" style="font-size:11px;color:var(--ink-muted);">Sum of VERIFIED/INCLUDED/ESTIMATED/ASSUMED items only — UNKNOWN is excluded, never treated as €0. Payment fee is price-dependent, shown per scenario below.</td></tr></table>${provisionalNote}`;
+}
+function marketComparablesHtml(scenario){
+  const comps = (scenario.market.comparables||[]);
+  if(!comps.length) return '<div class="sinterp">No comparables returned for this run.</div>';
+  // Link to a search for the brand+product, never a direct product URL: the AI has no live web
+  // access, so an invented "product page" link would likely be broken, stale, or the wrong item —
+  // a search link is always valid and takes the founder straight to real listings to verify.
+  const searchUrl = c => `https://www.google.com/search?q=${encodeURIComponent(`${c.brand||''} ${c.product||''}`.trim())}`;
+  return `<table class="score-table"><tr><td><strong>Brand / product</strong></td><td><strong>Price</strong></td><td><strong>Positioning</strong></td><td><strong>Observed</strong></td><td><strong>Strength</strong></td></tr>
+    ${comps.map(c=>`<tr><td><a href="${searchUrl(c)}" target="_blank" rel="noopener">${escapeHtml(c.brand||'')} — ${escapeHtml(c.product||'')}</a></td><td>€${c.price||0}</td><td style="font-size:11px;">${escapeHtml(c.positioning||'')}</td><td style="font-size:11px;color:var(--ink-muted);">${escapeHtml(c.date_observed||'not stated')}</td><td>${pricingStatusBadge(c.strength)}</td></tr>`).join('')}
+  </table>
+  <div class="section-note" style="margin-top:8px;">Market reference range from this evidence: €${scenario.market.low??'?'} – €${scenario.market.high??'?'} (mid €${scenario.market.mid??'?'}). Comparables come from the AI's training knowledge, not a live price check — prices are not live-verified; click a name to search for the current real listing. Treat as reference evidence, not confirmed current pricing.</div>`;
+}
+function pricingTiersHtml(scenario){
+  return `<table class="score-table">
+    <tr><td><strong>Scenario</strong></td><td><strong>Price</strong></td><td><strong>Payment fee</strong></td><td><strong>Contribution</strong></td><td><strong>Margin</strong></td><td><strong>Op. margin</strong></td><td><strong>Status</strong></td></tr>
+    ${scenario.pricing_scenarios.map(t=>`<tr><td>${t.name}</td><td>${t.selling_price!==null?'€'+t.selling_price.toFixed(2):'—'}</td><td>${t.payment_cost!==null?'€'+t.payment_cost.toFixed(2):'—'}</td><td>${t.contribution_profit!==null?'€'+t.contribution_profit.toFixed(2):'—'}</td><td>${t.contribution_margin_pct!==null?t.contribution_margin_pct+'%':'—'}</td><td>${t.operating_margin_pct!==null?t.operating_margin_pct+'%':'—'}</td><td>${pricingStatusBadge(t.status)}</td></tr>`).join('')}
+  </table>`;
+}
+function costResponsibilityHtml(scenario){
+  const rows = scenario.cost_responsibility || [];
+  if(!rows.length) return '';
+  return `<h3 style="font-size:13px;margin:14px 0 6px;">Cost responsibility (${scenario.commercial_arrangement})</h3>
+  <div class="section-note" style="margin-bottom:6px;">Who typically bears each cost under this Incoterm — this is NOT evidence that a cost is actually included in the supplier's quoted price; see the cost breakdown's own status column for that.</div>
+  <table class="score-table"><tr><td><strong>Cost item</strong></td><td><strong>Responsibility</strong></td></tr>
+    ${rows.map(r=>`<tr><td>${r.label}</td><td>${escapeHtml(r.responsibility)}</td></tr>`).join('')}
+  </table>
+  ${scenario.commercial_arrangement==='UNKNOWN' ? '<div class="flag amber" style="margin-top:8px;">Commercial arrangement not confirmed — who pays shipping/customs is uncertain. Verify the Incoterm with the supplier before relying on this analysis.</div>' : ''}`;
+}
+function vatTreatmentHtml(scenario){
+  const v = scenario.vat_treatment;
+  if(!v) return '';
+  return `<h3 style="font-size:13px;margin:14px 0 6px;">VAT treatment</h3>
+  <div class="sinterp">${pricingStatusBadge(v.status)}${v.requires_verification?' <span style="font-size:11px;color:var(--rust);">— requires verification</span>':''} ${escapeHtml(v.note)}</div>`;
+}
+function pricingUncertaintyHtml(scenario){
+  return `
+    <div class="section-note">Confidence: <strong>${scenario.confidence}%</strong> — evidence-based (cost-item completeness × market-comparable strength), not an AI-invented figure. Recommendation readiness: ${pricingStatusBadge(scenario.recommendation_readiness)}</div>
+    ${scenario.assumptions.length ? `<div class="sinterp" style="margin-top:6px;"><strong>Assumptions:</strong> ${scenario.assumptions.map(a=>escapeHtml(a)).join('; ')}</div>` : ''}
+    ${scenario.unknowns.length ? `<div class="flag amber" style="margin-top:6px;"><strong>Unknowns:</strong> ${scenario.unknowns.map(u=>escapeHtml(u)).join('; ')}</div>` : ''}
+    ${scenario.flags.length ? `<div class="flag amber" style="margin-top:6px;">${scenario.flags.map(f=>escapeHtml(f)).join(' · ')}</div>` : ''}
+  `;
+}
+function pricingScenarioDetailHtml(p, scenario, cfg){
+  const decision = computeCommercialDecision(p, scenario, cfg);
+  const decisionColor = decision ? (decision.status==='PROCEED'?'var(--moss)':decision.status==='REVIEW'?'#b8860b':decision.status==='HOLD'?'var(--ink-muted)':'var(--rust)') : '';
+  const decisionEmoji = decision ? (decision.status==='PROCEED'?'🟢':decision.status==='REVIEW'?'🟡':decision.status==='HOLD'?'⏸':'🔴') : '';
+  const rec = scenario.recommendation;
+  const ba = rec.best_available;
+  return `
+    <div class="section-note" style="margin:14px 0 10px;">v${scenario.version} · ${scenario.sourcing_model.replace('_',' ')} → ${escapeHtml(scenario.target_market)} · ${scenario.commercial_arrangement} · analyzed ${new Date(scenario.analyzed_at).toLocaleString()}</div>
+    <h3 style="font-size:13px;margin:14px 0 6px;">Cost breakdown</h3>
+    ${costBreakdownTableHtml(scenario)}
+    ${costResponsibilityHtml(scenario)}
+    ${vatTreatmentHtml(scenario)}
+    <h3 style="font-size:13px;margin:14px 0 6px;">Market reference range</h3>
+    ${marketComparablesHtml(scenario)}
+    <h3 style="font-size:13px;margin:14px 0 6px;">Pricing scenario prices</h3>
+    ${pricingTiersHtml(scenario)}
+    <h3 style="font-size:13px;margin:14px 0 6px;">Uncertainty</h3>
+    ${pricingUncertaintyHtml(scenario)}
+    <h3 style="font-size:13px;margin:14px 0 6px;">Aino Home recommended price</h3>
+    ${rec.status==='SUPPORTED' ? `
+    <div class="sinterp">€${rec.min_price.toFixed(2)} – €${rec.max_price.toFixed(2)}, reference price €${rec.reference_price.toFixed(2)} (${rec.reference_tier} — the most competitive price that meets the margin target).
+    ${rec.requires_validation ? `<div class="flag amber" style="margin-top:8px;">⚠ ${escapeHtml(rec.note)}</div>` : ''}
+    </div>` : `
+    <div class="sinterp"><strong>NOT SUPPORTED</strong> — no pricing tier meets the ${cfg.min_contribution_margin_pct.value}% margin target under this transaction scenario. This is a transaction/sourcing result, not a product rejection.</div>
+    ${ba ? `<div class="section-note" style="margin-top:8px;"><strong>Highest tested price</strong> (reference only): ${ba.tier} at €${ba.price.toFixed(2)}, contribution margin ${ba.contribution_margin_pct}% — target ${ba.target_pct}%, gap ${ba.gap_pct>0?'+':''}${ba.gap_pct} percentage points.</div>` : ''}
+    `}
+    <div class="section-note" style="margin-top:6px;">Note: the market reference range above (especially Premium) is evidence of what the market charges — it is never automatically Aino Home's recommended price. Only a scenario that clears the margin target can become the recommendation.</div>
+    ${decision ? `
+    <div class="decision-banner" style="margin-top:16px;border-color:${decisionColor};">
+      <div><div class="status serif">${decisionEmoji} ${decision.status}</div><div class="reason">${escapeHtml(decision.rationale)}</div></div>
+    </div>` : ''}
+  `;
+}
+function pricingSetupHtml(p){
+  const lastScenario = p.pricing && Array.isArray(p.pricing.scenarios) && p.pricing.scenarios.length ? p.pricing.scenarios[p.pricing.scenarios.length-1] : null;
+  const cfg = pricingBusinessConfig;
+  return `
+    <div class="panel assessment-setup-panel">
+      <h2>Assessment setup</h2>
+      <div class="section-note">Define the commercial scenario and business threshold before running the assessment. The selected scenario is evaluated together with Product Selection in one run.</div>
+      ${pricingSettingsHtml(cfg)}
+      <div class="setup-grid">
+        <div><label>Sourcing model</label>
+          <select id="sourcingModelSelect">
+            <option value="CHINA_DIRECT" ${(!lastScenario||lastScenario.sourcing_model==='CHINA_DIRECT')?'selected':''}>China Direct</option>
+            <option value="EU_SUPPLIER" ${(lastScenario&&lastScenario.sourcing_model==='EU_SUPPLIER')?'selected':''}>EU Supplier</option>
+          </select>
+        </div>
+        <div><label>Target market</label>
+          <input type="text" id="targetMarketInput" value="${escapeHtml(lastScenario?lastScenario.target_market:'Finland')}" placeholder="e.g. Finland">
+        </div>
+        <div><label>Commercial arrangement / Incoterm</label>
+          <select id="commercialArrangementSelect">
+            ${['DDP','DAP','EXW','UNKNOWN'].map(v=>`<option value="${v}" ${(lastScenario?lastScenario.commercial_arrangement:'UNKNOWN')===v?'selected':''}>${v}</option>`).join('')}
+          </select>
+        </div>
+        <div><label>Product / supplier cost (€) *</label>
+          <input type="number" step="0.01" min="0" id="supplierCostInput" value="${p.supplier_cost_eur!==null&&p.supplier_cost_eur!==undefined?p.supplier_cost_eur:''}" placeholder="e.g. 12.00">
+        </div>
+        <div><label>Source country</label>
+          <input type="text" id="sourceCountryInput" value="${escapeHtml(p.source_country||'')}" placeholder="e.g. China, Germany">
+        </div>
+        <div><label>Known shipping (€), optional</label>
+          <input type="number" step="0.01" min="0" id="knownShippingInput" placeholder="if known">
+        </div>
+        <div><label>Known duty (€), optional</label>
+          <input type="number" step="0.01" min="0" id="knownDutyInput" placeholder="if known">
+        </div>
+        <div><label>Other known cost (€), optional</label>
+          <input type="number" step="0.01" min="0" id="knownOtherCostInput" placeholder="if known">
+        </div>
+      </div>
+    </div>
+  `;
+}
+function pricingPanelHtml(p){
+  if(!p.pricing || !Array.isArray(p.pricing.scenarios)) p.pricing = {scenarios:[]};
+  const scenarios = p.pricing.scenarios;
+  const cfg = pricingBusinessConfig;
+  const lastScenario = scenarios.length ? scenarios[scenarios.length-1] : null;
+  const currentId = state.currentPricingScenarioId[p.id] || (lastScenario ? lastScenario.scenario_id : null);
+  const selected = scenarios.find(s=>s.scenario_id===currentId) || lastScenario;
+
+  return `
+    <div class="panel">
+      <h2>Pricing &amp; Margin Intelligence <span style="font-weight:400;font-size:12px;color:var(--ink-muted);">(internal — not shown to customers)</span></h2>
+      <div class="section-note">The selected transaction scenario is analysed automatically as part of the same Full Assessment run. Pricing remains an independent economic decision and does not alter the Product Selection score.</div>
+      ${scenarios.length ? `
+      <div style="margin-top:18px;">
+        <label style="font-size:12px;color:var(--ink-muted);">Version history (never overwritten)</label>
+        <select id="pricingVersionSelect" style="width:100%;">
+          ${scenarios.slice().reverse().map(s=>`<option value="${s.scenario_id}" ${selected&&selected.scenario_id===s.scenario_id?'selected':''}>v${s.version} — ${s.sourcing_model.replace('_',' ')} → ${escapeHtml(s.target_market)} — ${s.recommendation.reference_price!==null?'€'+s.recommendation.reference_price.toFixed(2):'no viable price'} — ${new Date(s.analyzed_at).toLocaleDateString()}</option>`).join('')}
+        </select>
+      </div>
+      ${selected ? pricingScenarioDetailHtml(p, selected, cfg) : ''}
+      ` : `<div class="sinterp" style="margin-top:12px;">No pricing scenario has been run yet. Use <strong>Run Full Assessment</strong> above to analyse Product Selection and the selected commercial scenario together.</div>`}
+    </div>
+  `;
+}
+function attachPricingHandlers(p){
+  const versionSelect = document.getElementById('pricingVersionSelect');
+  if(versionSelect) versionSelect.addEventListener('change', (e)=>{
+    state.currentPricingScenarioId[p.id] = e.target.value;
+    renderConsole(p);
+  });
+  const saveCfgBtn = document.getElementById('savePricingCfgBtn');
+  if(saveCfgBtn) saveCfgBtn.addEventListener('click', async ()=>{
+    const cfg = JSON.parse(JSON.stringify(pricingBusinessConfig));
+    cfg.min_contribution_margin_pct.value = parseFloat(document.getElementById('cfgMinMargin').value)||0;
+    cfg.min_confidence_pct.value = parseFloat(document.getElementById('cfgMinConfidence').value)||0;
+    cfg.monthly_operating_overhead_eur.value = parseFloat(document.getElementById('cfgOverhead').value)||0;
+    cfg.expected_monthly_orders_per_sku.value = parseFloat(document.getElementById('cfgOrders').value)||1;
+    await savePricingConfig(cfg);
+    renderConsole(p);
+  });
+}
+
+/* ============================= AI EXTRACTION (Anthropic API, signal_extraction_v1) ============================= */
+function buildMessageContent(evidences){
+  const imageIdx = evidences.map((ev,i)=> ev.sourceType==='image' ? i+1 : null).filter(n=>n!==null);
+  const header = `You are the signal_extraction_v1 + signal_aggregation_v1 modules of a deterministic product-selection pipeline for a pet-products brand ("Aino Home"). You extract structured evidence ONLY from the supplied evidence items below, then aggregate them into one final view per signal. You never invent product properties, never upgrade a claim's certainty (e.g. never turn CLAIMED into VERIFIED just because it sounds plausible), and never average contradictory evidence into a false neutral — instead flag the conflict.
+
+You will be given ${evidences.length} numbered evidence item(s), each tagged with its source_type and evidence_type. Some are pasted text and some are images (shown to you directly — inspect them visually).
+
+Extract exactly these 12 signal types: animal_safety, human_safety, health_wellbeing, comfort, cleanliness, easy_maintenance, convenience, interaction, agency, organisation, space_efficiency, aesthetics.
+
+Be concise — this output has a strict token budget. For each signal type, aggregate across ALL relevant evidence items and decide:
+- scorable: true only if at least one evidence item gives usable evidence (positive, negative, or deliberate neutral). Unknown must never be scored as neutral.
+- polarity: -1, 0, or 1
+- strength: 0-4 (0=no signal, 4=very strong evidence)
+- confidence: 0-1
+- conflict_level: "NONE" | "LOW" | "MEDIUM" | "HIGH" — HIGH if evidence items disagree materially on this signal
+- interpretation: a very short phrase (<=8 words), not a full sentence
+- evidence_quote: a short (<=10 words) paraphrase supporting this, or "" if not scorable
+- evidence_refs: array of the evidence item numbers (1-based) that informed this signal
+
+SPECIAL CAUTION for animal_safety and human_safety specifically (these carry hard safety floors — getting them wrong has real consequences): a generic spec-sheet checkbox (e.g. "hazardous chemicals: none", "certifications: none listed") is weak, narrow evidence — it rules out ONE specific concern, not the full safety picture. Do not treat it as equivalent to genuine safety evidence (material/construction descriptions, safety testing, injury reports, warnings, certifications actually named). If a checkbox-style field is the ONLY evidence available for one of these two signals: still mark it scorable, but cap confidence at 0.3 and strength at 1 — never let a single narrow checkbox alone justify high confidence or strength on a safety signal.
+
+Also extract:
+- product: {name, category, supplier_name, selling_price (number or null), currency (string or null)}
+- hazard_flags: {verified_injury: bool, manufacturer_hazard_warning: bool, structural_failure_hazard: bool} — true only if explicitly stated in evidence
+- commercial_estimates: your best-effort ESTIMATE (not verified data) of each category as a single 0-100 score — do not break these into sub-components, just give one number per category:
+  market_demand (0-100), logistics (0-100), return_sizing (0-100), seasonality (0-100), demonstrable_value (0-100)
+- commercial_note: one short phrase (<=12 words) flagging what's most uncertain in the commercial estimate.
+${imageIdx.length ? `- image_extractions: for EACH image evidence item (this evidence set has image(s) numbered ${imageIdx.join(', ')}), transcribe literally what's visible on the packaging/label/photo into a structured object: {evidence_ref (the number), product_name, main_tagline, key_features (array of short phrases, up to 6), promotional_pricing_text}. This is a literal transcription task, not analysis — use "" or [] for anything not visibly printed on that image. One object per image evidence item.` : ''}
+
+Respond with ONLY valid JSON, no markdown fences, no preamble, no extra whitespace, matching this shape exactly:
+{"product":{"name":"","category":"","supplier_name":"","selling_price":null,"currency":null},
+"signals":{"animal_safety":{"scorable":true,"polarity":0,"strength":0,"confidence":0,"conflict_level":"NONE","interpretation":"","evidence_quote":"","evidence_refs":[]}, ... (all 12 keys)},
+"hazard_flags":{"verified_injury":false,"manufacturer_hazard_warning":false,"structural_failure_hazard":false},
+"commercial_estimates":{"market_demand":0,"logistics":0,"return_sizing":0,"seasonality":0,"demonstrable_value":0},
+"commercial_note":""${imageIdx.length ? `,\n"image_extractions":[{"evidence_ref":${imageIdx[0]},"product_name":"","main_tagline":"","key_features":[],"promotional_pricing_text":""}]` : ''}}
+
+Evidence items follow below, numbered in order.`;
+
+  const content = [{type:"text", text: header}];
+  evidences.forEach((ev, i)=>{
+    const idx = i+1;
+    const meta = SOURCE_TYPES.find(s=>s.v===ev.sourceType) || SOURCE_TYPES[0];
+    if(ev.sourceType === 'image'){
+      content.push({type:"text", text:`EVIDENCE ${idx} — source_type: image, evidence_type: ${meta.ev}.${ev.text?` Caption/notes: "${ev.text}"`:''} The image is attached below:`});
+      if(ev.imageData){
+        const b64 = ev.imageData.split(',')[1] || '';
+        const mediaType = ev.imageMediaType || (ev.imageData.match(/^data:([^;]+);/)||[])[1] || 'image/png';
+        content.push({type:"image", source:{type:"base64", media_type: mediaType, data: b64}});
+      } else if(ev.url){
+        content.push({type:"image", source:{type:"url", url: ev.url}});
+      } else {
+        content.push({type:"text", text:`(no image URL or pasted image was provided for evidence ${idx} — treat as not scorable)`});
+      }
+    } else {
+      content.push({type:"text", text:`EVIDENCE ${idx} — source_type: ${ev.sourceType}, evidence_type: ${meta.ev}. Content:\n"""${ev.text||''}"""`});
+    }
+  });
+  return content;
+}
+async function safeParseResponse(resp){
+  const raw = await resp.text();
+  try{
+    return JSON.parse(raw);
+  }catch(e){
+    if(resp.status===413 || /request entity too large/i.test(raw)){
+      throw new Error('This evidence is too large to submit. If it includes a pasted image, try a smaller photo or crop it, then retry.');
+    }
+    if(!resp.ok){
+      throw new Error(`Server error (${resp.status}): ${raw.slice(0,150) || 'no response body'}`);
+    }
+    throw new Error('Server returned an unexpected (non-JSON) response.');
+  }
+}
+async function callClaudeRaw(content, maxTokens){
+  const resp = await fetch("/api/assess", {
+    method:"POST",
+    headers:{"Content-Type":"application/json", "x-app-password": getPassword()},
+    body: JSON.stringify({
+      model:"claude-sonnet-4-6",
+      max_tokens: maxTokens,
+      messages:[{role:"user", content: content}]
+    })
+  });
+  if(resp.status===401){ showPassGate('Session expired — please re-enter the password.'); throw new Error('Unauthorized'); }
+  const data = await safeParseResponse(resp);
+  if(data.error){
+    const msg = data.error.message || "API error";
+    if(/tokens per minute|requests per minute|rate.?limit/i.test(msg)){
+      throw new Error("A rate limit was hit for this minute — this isn't a bug, just wait a bit and click Run again. (" + msg + ")");
+    }
+    throw new Error(msg);
+  }
+  return data;
+}
+function cleanJsonText(text){
+  let t = text.replace(/```json|```/g,"").trim();
+  const start = t.indexOf('{');
+  const end = t.lastIndexOf('}');
+  if(start !== -1 && end !== -1 && end > start){
+    t = t.slice(start, end+1);
+  }
+  return t;
+}
+async function callClaude(content, maxTokens=3000){
+  const data = await callClaudeRaw(content, maxTokens);
+  const text = data.content.map(b=>b.text||"").join("");
+  try{
+    return JSON.parse(cleanJsonText(text));
+  }catch(e){
+    // The model occasionally produces near-valid JSON with a stray quote or
+    // formatting slip. Retry once with an explicit strict-JSON reminder
+    // before surfacing an error to the user.
+    const retryContent = [...content, {type:"text", text:"Your previous response was not valid JSON. Return ONLY strict, valid, minified JSON on a single line — no markdown fences, no line breaks, no trailing commas, and escape every quote character inside string values as \\\". Output nothing else, no explanation."}];
+    const data2 = await callClaudeRaw(retryContent, maxTokens);
+    const text2 = data2.content.map(b=>b.text||"").join("");
+    try{
+      return JSON.parse(cleanJsonText(text2));
+    }catch(e2){
+      throw new Error("The model's response wasn't valid JSON, even after retrying automatically. Try shortening the evidence text or using fewer sources at once, then run again.");
+    }
+  }
+}
+async function testImageUrl(url){
+  try{
+    const resp = await fetch("/api/assess", {
+      method:"POST",
+      headers:{"Content-Type":"application/json", "x-app-password": getPassword()},
+      body: JSON.stringify({
+        model:"claude-sonnet-4-6",
+        max_tokens: 10,
+        messages:[{role:"user", content:[{type:"text",text:"Reply with just the word OK."},{type:"image",source:{type:"url",url}}]}]
+      })
+    });
+    const data = await safeParseResponse(resp);
+    if(data.error) return data.error.message || "Unknown error";
+    return null;
+  }catch(e){ return e.message || String(e); }
+}
+function extractUrlFromError(msg){
+  const m = msg.match(/https?:\/\/[^\s"')]+/);
+  return m ? m[0].replace(/[.,;]+$/,'') : null;
+}
+function friendlyImageError(msg){
+  if(/robots\.txt/i.test(msg)) return "Blocked by this site's robots.txt — the host doesn't allow automated fetching of this image. Try a different, directly-linked image URL (e.g. a CDN or media-hosting link) or paste a description instead.";
+  if(/(timeout|timed out)/i.test(msg)) return "The image took too long to load from this URL. Try a different link.";
+  if(/(404|not found)/i.test(msg)) return "This image URL doesn't seem to resolve (not found). Double-check the link.";
+  return "Couldn't retrieve this image: " + msg;
+}
+async function diagnoseAndFlagEvidence(p, msg){
+  const imageEvidences = p.evidences.map((e,i)=>({e,i})).filter(x=>x.e.sourceType==='image' && !x.e.imageData && x.e.url && x.e.url.trim());
+  if(!imageEvidences.length) return false;
+  const isFetchIssue = /robots\.txt|could not retrieve|unable to (fetch|access|retrieve)|disallowed|fetch (the )?url|error (fetching|retrieving)|invalid image|not (be )?access|failed to (fetch|download)/i.test(msg);
+  if(!isFetchIssue) return false;
+
+  const directUrl = extractUrlFromError(msg);
+  if(directUrl){
+    const hit = imageEvidences.find(x => directUrl.indexOf(x.e.url) !== -1 || x.e.url.indexOf(directUrl) !== -1);
+    if(hit){ hit.e.error = friendlyImageError(msg); return true; }
+  }
+  if(imageEvidences.length === 1){
+    imageEvidences[0].e.error = friendlyImageError(msg);
+    return true;
+  }
+  // ambiguous with multiple image URLs — test each individually to pinpoint the offender(s)
+  for(const {e} of imageEvidences){
+    const err = await testImageUrl(e.url);
+    if(err) e.error = friendlyImageError(err);
+  }
+  return true;
+}
+function buildErrorBanner(msg, p){
+  const flagged = p.evidences.filter(e=>e.error);
+  if(flagged.length){
+    return `<div class="error-box">The assessment couldn't complete — ${flagged.length} evidence item${flagged.length>1?'s':''} above ${flagged.length>1?'are':'is'} highlighted in red. Fix or remove ${flagged.length>1?'them':'it'} and re-run.</div>`;
+  }
+  return `<div class="error-box">Assessment failed: ${escapeHtml(msg)}. Try again.</div>`;
+}
+
+/* ============================= RENDER ============================= */
+function uid(){ return 'p_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+function renderSidebar(){
+  const q = document.getElementById('queue');
+  if(!state.products.length){
+    q.innerHTML = `<div class="queue-empty">No products assessed yet.</div>`;
+    return;
+  }
+  const groupOrder = [...COLLECTIONS, ''];
+  const groupLabel = {'':'Uncategorized'};
+  const itemHtml = p => `
+    <div class="queue-item ${p.id===state.currentId?'active':''}" data-id="${p.id}">
+      <div class="qname">${escapeHtml(p.name||'Untitled product')}</div>
+      ${p.assessed && p.updated_at ? `<div class="qtime">${new Date(p.updated_at).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'})}</div>` : ''}
+      <div class="qmeta"><span>${p.score!==null&&p.score!==undefined?p.score.toFixed(1):'—'}</span>${p.decision?`<span class="badge ${p.decision}">${p.decision}</span>`:'<span></span>'}</div>
+    </div>`;
+  q.innerHTML = groupOrder.map(g=>{
+    const items = state.products.filter(p=> (p.collection||'')===g).sort((a,b)=>b.updated_at-a.updated_at);
+    if(!items.length) return '';
+    const key = `aino_queue_group_${g || 'uncategorized'}`;
+    const collapsed = localStorage.getItem(key) === 'collapsed';
+    return `<div class="queue-group${collapsed?' is-collapsed':''}" data-group="${escapeHtml(g || 'uncategorized')}">
+      <button class="queue-group-toggle" type="button" aria-expanded="${collapsed?'false':'true'}">${escapeHtml(groupLabel[g]||g)}</button>
+      <div class="queue-group-items">${items.map(itemHtml).join('')}</div>
+    </div>`;
+  }).join('');
+  q.querySelectorAll('.queue-group-toggle').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const group = btn.closest('.queue-group');
+      const isCollapsed = group.classList.toggle('is-collapsed');
+      btn.setAttribute('aria-expanded', String(!isCollapsed));
+      const key = `aino_queue_group_${group.dataset.group === 'uncategorized' ? '' : group.dataset.group}`;
+      localStorage.setItem(key, isCollapsed ? 'collapsed' : 'open');
+    });
+  });
+  q.querySelectorAll('.queue-item').forEach(el=>{
+    el.addEventListener('click', ()=> openProduct(el.dataset.id));
+  });
+}
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// Downscales/re-compresses a pasted or dropped image before it's ever
+// base64-encoded, so a large phone photo doesn't blow past the server's
+// request-size limit (Vercel serverless functions reject oversized bodies
+// with a plain-text "Request Entity Too Large" error).
+function compressImageFile(blob, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onload = ()=>{
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if(width > maxDim || height > maxDim){
+        if(width >= height){ height = Math.round(height * (maxDim/width)); width = maxDim; }
+        else { width = Math.round(width * (maxDim/height)); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve({ dataUrl, mimeType: 'image/jpeg' });
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('Could not load image for compression')); };
+    img.src = url;
+  });
+}
+
+function renderConsole(product){
+  const wrap = document.getElementById('wrap');
+  const p = product;
+  const doneIdx = p.assessed ? 6 : (inflight ? -1 : 0);
+  wrap.innerHTML = `
+    <div class="case-header">
+      <input type="text" id="productNameInput" class="product-name-input" value="${escapeHtml(p.name||'')}" placeholder="Untitled product">
+      <input type="text" id="productUrlInput" class="product-url-input" value="${escapeHtml(p.productUrl||'')}" placeholder="Source product URL (optional)">
+      <select id="collectionSelect" class="collection-select">
+        <option value="">No collection</option>
+        ${COLLECTIONS.map(c=>`<option value="${c}" ${p.collection===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+      <div class="sub" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span>${p.assessed ? p.evidences.length+' evidence source'+(p.evidences.length>1?'s':'') : 'Paste or link published product info to run the full pipeline.'}</span>
+        ${p.assessed ? `
+          <span style="display:inline-flex;align-items:center;gap:6px;margin-left:auto;">
+            <button class="run-btn" id="runBtnHeader" ${inflight?'disabled':''} type="button" style="margin:0;">${inflight?'<span class="spinner"></span>Running full assessment…':'Re-run full assessment'}</button>
+            <button class="ghost-btn" id="exportPdfBtn" type="button">Export PDF</button>
+            <button class="ghost-btn" id="deleteBtn" type="button">Delete this assessment</button>
+          </span>` : ''}
+      </div>
+    </div>
+
+    ${p.assessed ? renderExecutiveSummary(p) : ''}
+
+    <details class="assessment-inputs-toggle" ${p.assessed?'':'open'}>
+      <summary>Assessment setup &amp; evidence intake</summary>
+      <div class="assessment-inputs-toggle-body">
+        ${pricingSetupHtml(p)}
+
+        <div class="panel">
+          <h2>1 · Evidence intake</h2>
+          <div class="section-note">Add one item per source — supplier pages, marketplace listings, reviews, test notes, or an image URL. All items are analysed together.</div>
+          <div id="evidenceList">${p.evidences.map((ev,i)=>evidenceCardHtml(ev,i,p.evidences.length)).join('')}</div>
+          <button class="ghost-btn" id="addEvidenceBtn">+ Add another evidence source</button>
+
+          <button class="run-btn" id="runBtn" ${inflight?'disabled':''} style="margin-top:18px;">${inflight?'<span class="spinner"></span>Running full assessment…':(p.assessed?'Re-run full assessment':'Run Full Assessment')}</button>
+          <div id="errBox"></div>
+        </div>
+      </div>
+    </details>
+
+    ${p.assessed ? renderResults(p) : ''}
+
+    ${pricingPanelHtml(p)}
+  `;
+
+  document.getElementById('newBtn').onclick = createNewProduct;
+  attachIntakeHandlers(p);
+  attachPricingHandlers(p);
+}
+
+function evidenceCardHtml(ev, i, total){
+  const opts = SOURCE_TYPES.map(s=>`<option value="${s.v}" ${ev.sourceType===s.v?'selected':''}>${s.l}</option>`).join('');
+  let body;
+  if(ev.sourceType === 'image'){
+    body = `
+      <label>Image URL</label>
+      <input type="text" class="ev-url" data-idx="${i}" value="${escapeHtml(ev.url||'')}" placeholder="https://.../product-photo.jpg">
+      <div class="or-divider">or</div>
+      <label>Paste an image directly (Ctrl+V)</label>
+      <div class="paste-zone" data-idx="${i}" tabindex="0">
+        ${ev.imageData
+          ? `<img src="${ev.imageData}" class="paste-preview"><button class="ghost-btn ev-clear-paste" data-idx="${i}" type="button">Remove pasted image</button>`
+          : ev.hadPastedImage
+            ? `<span class="paste-hint">Click here, then press Ctrl+V — the previously pasted image wasn't saved (nothing is stored between sessions), so paste it again to include it in a re-run.</span>`
+            : `<span class="paste-hint">Click here, then press Ctrl+V (or drop an image file) — nothing is uploaded or saved, it's only used for this analysis.</span>`}
+      </div>
+      <label>Caption / notes (optional)</label>
+      <textarea class="ev-text" data-idx="${i}" style="min-height:64px;" placeholder="Anything worth flagging about this image...">${escapeHtml(ev.text||'')}</textarea>
+      <div class="hint">No file upload needed — paste an image or give a URL and the AI agent inspects it directly. If both are provided, the pasted image is used.</div>`;
+  } else {
+    body = `
+      <label>Pasted content</label>
+      <textarea class="ev-text" data-idx="${i}" placeholder="Paste text from this source...">${escapeHtml(ev.text||'')}</textarea>`;
+  }
+  return `<div class="evidence-card ${ev.error?'has-error':''}" data-idx="${i}">
+    <div class="row">
+      <div><label>Source type</label><select class="ev-type" data-idx="${i}">${opts}</select></div>
+      ${total>1 ? `<div style="flex:0 0 auto;"><button class="ghost-btn ev-remove" data-idx="${i}" type="button">Remove</button></div>` : ''}
+    </div>
+    ${ev.error ? `<div class="ev-error">⚠ ${escapeHtml(ev.error)}</div>` : ''}
+    ${body}
+  </div>`;
+}
+
+function syncEvidencesFromDOM(p){
+  const old = p.evidences || [];
+  const arr = [];
+  document.querySelectorAll('.ev-type').forEach(sel=>{
+    const idx = parseInt(sel.dataset.idx);
+    arr[idx] = Object.assign({sourceType:'supplier_page', url:'', text:''}, arr[idx], {sourceType: sel.value});
+  });
+  document.querySelectorAll('.ev-url').forEach(inp=>{
+    const idx = parseInt(inp.dataset.idx);
+    arr[idx] = Object.assign({sourceType:'supplier_page', url:'', text:''}, arr[idx], {url: inp.value});
+  });
+  document.querySelectorAll('.ev-text').forEach(t=>{
+    const idx = parseInt(t.dataset.idx);
+    arr[idx] = Object.assign({sourceType:'supplier_page', url:'', text:''}, arr[idx], {text: t.value});
+  });
+  arr.forEach((e,i)=>{
+    if(e && old[i]){
+      if(old[i].error && old[i].url === e.url && old[i].sourceType === e.sourceType) e.error = old[i].error;
+      if(old[i].imageData){ e.imageData = old[i].imageData; e.imageMediaType = old[i].imageMediaType; }
+      if(old[i].hadPastedImage) e.hadPastedImage = true;
+    }
+  });
+  p.evidences = arr.filter(Boolean);
+}
+
+function attachIntakeHandlers(p){
+  document.getElementById('addEvidenceBtn').addEventListener('click', ()=>{
+    syncEvidencesFromDOM(p);
+    p.evidences.push({sourceType:'supplier_page', url:'', text:''});
+    renderConsole(p);
+    if(p.assessed) attachResultHandlers(p);
+  });
+  document.querySelectorAll('.ev-remove').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      syncEvidencesFromDOM(p);
+      p.evidences.splice(parseInt(btn.dataset.idx),1);
+      renderConsole(p);
+      if(p.assessed) attachResultHandlers(p);
+    });
+  });
+  document.querySelectorAll('.ev-type').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      syncEvidencesFromDOM(p);
+      renderConsole(p);
+      if(p.assessed) attachResultHandlers(p);
+    });
+  });
+  document.querySelectorAll('.paste-zone').forEach(zone=>{
+    const idx = parseInt(zone.dataset.idx);
+    const handleImageFile = (blob)=>{
+      compressImageFile(blob, 1600, 0.82).then(({dataUrl, mimeType})=>{
+        syncEvidencesFromDOM(p);
+        p.evidences[idx].imageData = dataUrl;
+        p.evidences[idx].imageMediaType = mimeType;
+        p.evidences[idx].hadPastedImage = true;
+        renderConsole(p);
+        if(p.assessed) attachResultHandlers(p);
+      }).catch(()=>{
+        // fall back to the raw file if compression fails for any reason
+        const reader = new FileReader();
+        reader.onload = ()=>{
+          syncEvidencesFromDOM(p);
+          p.evidences[idx].imageData = reader.result;
+          p.evidences[idx].imageMediaType = blob.type || 'image/png';
+          p.evidences[idx].hadPastedImage = true;
+          renderConsole(p);
+          if(p.assessed) attachResultHandlers(p);
+        };
+        reader.readAsDataURL(blob);
+      });
+    };
+    zone.addEventListener('paste', (evt)=>{
+      const items = (evt.clipboardData || window.clipboardData).items;
+      for(const item of items){
+        if(item.type.indexOf('image')===0){
+          evt.preventDefault();
+          handleImageFile(item.getAsFile());
+          break;
+        }
+      }
+    });
+    zone.addEventListener('dragover', (evt)=>{ evt.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', ()=> zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', (evt)=>{
+      evt.preventDefault(); zone.classList.remove('drag-over');
+      const file = evt.dataTransfer.files && evt.dataTransfer.files[0];
+      if(file && file.type.indexOf('image')===0) handleImageFile(file);
+    });
+  });
+  document.querySelectorAll('.ev-clear-paste').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      syncEvidencesFromDOM(p);
+      const idx = parseInt(btn.dataset.idx);
+      delete p.evidences[idx].imageData;
+      delete p.evidences[idx].imageMediaType;
+      p.evidences[idx].hadPastedImage = false;
+      renderConsole(p);
+      if(p.assessed) attachResultHandlers(p);
+    });
+  });
+  document.getElementById('runBtn').addEventListener('click', ()=> runFullAssessment(p));
+  const nameInput = document.getElementById('productNameInput');
+  if(nameInput){
+    const commitName = ()=>{
+      p.name = nameInput.value.trim();
+      renderSidebar();
+      if(p.assessed){
+        saveProduct(p);
+        persistIndex();
+      }
+    };
+    nameInput.addEventListener('change', commitName);
+    nameInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') nameInput.blur(); });
+  }
+  const urlInput = document.getElementById('productUrlInput');
+  if(urlInput){
+    const commitUrl = ()=>{
+      p.productUrl = urlInput.value.trim();
+      if(p.assessed){
+        saveProduct(p);
+      }
+    };
+    urlInput.addEventListener('change', commitUrl);
+    urlInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') urlInput.blur(); });
+  }
+  const collectionSelect = document.getElementById('collectionSelect');
+  if(collectionSelect){
+    collectionSelect.addEventListener('change', ()=>{
+      p.collection = collectionSelect.value;
+      renderSidebar();
+      if(p.assessed){
+        saveProduct(p);
+        persistIndex();
+      }
+    });
+  }
+}
+
+function pctBar(conf){ return `<div class="conf-bar"><div style="width:${Math.round(conf*100)}%"></div></div>`; }
+
+function renderExecutiveSummary(p){
+  const { signals, va, dna, gate, decision, score } = p;
+  const decisionClass = decision;
+  const gateNote = gate.gate_status==='PASS'
+    ? (gate.safetyUnverified ? 'Gate passed, but animal/human safety evidence was incomplete or below floor — verify before committing.' : 'All gate checks passed.')
+    : gate.gate_status==='HOLD' ? 'Coverage or confidence below the evidence threshold — gather more evidence before deciding.' :
+    'A non-negotiable was violated: ' + (gate.reason_code||'critical safety hazard');
+
+  return `
+    <div class="decision-banner ${decisionClass}">
+      <div>
+        <div class="status serif">${decision==='REJECT' ? 'REJECT' : decision}</div>
+        <div class="reason">${gateNote}</div>
+      </div>
+      <div class="score mono">${score.toFixed(1)} / 100</div>
+    </div>
+
+    ${(()=>{
+      const latestScenario = p.pricing && Array.isArray(p.pricing.scenarios) && p.pricing.scenarios.length ? p.pricing.scenarios[p.pricing.scenarios.length-1] : null;
+      const pricingDecision = latestScenario ? computeCommercialDecision(p, latestScenario, pricingBusinessConfig) : null;
+      const pricingStatus = pricingDecision ? pricingDecision.status : null;
+      const pricingRec = latestScenario ? latestScenario.recommendation : null;
+      const strengths = SIGNAL_TYPES
+        .map(t=>({t, s:signals[t], val:signals[t]&&signals[t].scorable ? signals[t].polarity*signals[t].strength : null}))
+        .filter(x=>x.val!==null && x.val>0)
+        .sort((a,b)=>b.val-a.val)
+        .slice(0,2);
+      const strengthsText = strengths.length ? strengths.map(x=>SIGNAL_LABELS[x.t]).join(' and ') : 'the available evidence';
+      const blockers = [];
+      if(gate.reason_code){
+        if(gate.reason_code.includes('NO_EVIDENCE')) blockers.push('Evidence gap');
+        if(gate.reason_code.includes('THRESHOLD_FAILED') || gate.reason_code.includes('CRITICAL_SAFETY')) blockers.push('Gate failure');
+        if(gate.reason_code.includes('OVERALL_DNA_PARTIAL')) blockers.push('DNA is provisional');
+      }
+      if(gate.safetyUnverified) blockers.push('Safety verification');
+      if(!blockers.length && gate.gate_status==='PASS') blockers.push('No Gate blockers');
+      const actions=[];
+      if(gate.reason_code && gate.reason_code.includes('ORDERLINESS_NO_EVIDENCE')) actions.push('Add evidence for organisation and space efficiency.');
+      if(gate.safetyUnverified) actions.push('Verify safety / retention and fit before committing.');
+      if(dna.partial && !actions.some(a=>a.includes('organisation'))) actions.push('Complete the missing DNA evidence, then re-run.');
+      if(pricingStatus==='NOT_SUPPORTED' || (latestScenario && pricingRec && pricingRec.status==='NOT_SUPPORTED')) actions.push('Test a lower-cost sourcing or transaction scenario.');
+      if(!actions.length) actions.push('Proceed to the next validation step.');
+      const pricingHeadline = !latestScenario ? 'Not run' : pricingStatus==='NOT_SUPPORTED' ? 'NOT SUPPORTED' : pricingStatus || 'Pending';
+      const pricingSub = !latestScenario ? 'No pricing scenario has been analysed.' : pricingDecision ? pricingDecision.rationale : 'Pricing scenario needs review.';
+      return `
+      <div class="panel" style="padding:18px 20px;">
+        <h2 style="margin-bottom:12px;">Decision at a glance</h2>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
+          <div class="exec-stat" style="border:1px solid var(--line);padding:12px;">
+            <div class="exec-label">Product</div>
+            <div class="exec-val serif" style="font-size:22px;">${escapeHtml(decision)}</div>
+            <div class="section-note" style="margin-top:4px;">${escapeHtml(gate.gate_status==='HOLD' ? 'Promising, but not ready to select.' : gate.gate_status==='PASS' ? 'Gate cleared.' : 'A hard Gate condition failed.')}</div>
+          </div>
+          <div class="exec-stat" style="border:1px solid var(--line);padding:12px;">
+            <div class="exec-label">Key blockers</div>
+            <div class="exec-val" style="font-size:15px;line-height:1.35;">${escapeHtml(blockers.join(' · '))}</div>
+            <div class="section-note" style="margin-top:4px;">${escapeHtml(gate.reason_code || 'No Gate blockers')}</div>
+          </div>
+          <div class="exec-stat" style="border:1px solid var(--line);padding:12px;">
+            <div class="exec-label">Current economics</div>
+            <div class="exec-val serif" style="font-size:22px;">${escapeHtml(pricingHeadline)}</div>
+            <div class="section-note" style="margin-top:4px;">${escapeHtml(latestScenario ? `${latestScenario.sourcing_model.replace('_',' ')} → ${latestScenario.target_market}` : 'Run a scenario to assess economics.')}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+          <div class="flag good" style="margin:0;"><strong>What looks good:</strong> ${escapeHtml(strengthsText)} show the strongest positive evidence.</div>
+          <div class="flag" style="margin:0;"><strong>What needs action:</strong> ${escapeHtml(actions[0])}</div>
+        </div>
+        ${latestScenario && pricingStatus==='NOT_SUPPORTED' ? `<div class="section-note" style="margin-top:10px;"><strong>Economics are a transaction problem, not a product rejection.</strong> ${escapeHtml(pricingSub)}</div>` : ''}
+        <details style="margin-top:12px;">
+          <summary style="cursor:pointer;font-size:12px;font-weight:600;">Next actions</summary>
+          <ol style="margin:8px 0 0 20px;padding:0;font-size:12.5px;line-height:1.6;color:var(--ink-muted);">
+            ${actions.map(a=>`<li>${escapeHtml(a)}</li>`).join('')}
+          </ol>
+        </details>
+      </div>`;
+    })()}
+
+    <div class="panel">
+      <h2>Scorecard</h2>
+      <div class="exec-grid">
+        <div class="exec-stat"><div class="exec-label">V<sub>A</sub> score</div><div class="exec-val mono">${va.score===null?'N/A':va.score.toFixed(1)}</div></div>
+        <div class="exec-stat"><div class="exec-label">Evidence confidence</div><div class="exec-val mono">${(va.confidence*100).toFixed(0)}%</div></div>
+        <div class="exec-stat"><div class="exec-label">Overall DNA</div><div class="exec-val mono">${dna.overall===null?'N/A':dna.overall.toFixed(1)}${dna.partial?' · provisional':''}</div></div>
+        <div class="exec-stat"><div class="exec-label">Selection Score</div><div class="exec-val mono">${score.toFixed(1)}</div></div>
+      </div>
+      <div class="section-note" style="margin-top:10px;">Scores support the decision; they do not replace the Gate or the evidence behind it.</div>
+    </div>
+  `;
+}
+
+function renderResults(p){
+  const { signals, va, dna, gate, decision, score, commercial, hazard_flags, commercial_note, image_extractions } = p;
+  const decisionClass = decision;
+  const cappedForSafety = gate.safetyUnverified && decision==='TEST' && score >= CONFIG.decision_thresholds.select;
+  const gateNote = gate.gate_status==='PASS'
+    ? (gate.safetyUnverified ? 'Gate passed, but animal/human safety evidence was incomplete or below floor — verify before committing.' : 'All gate checks passed.')
+    : gate.gate_status==='HOLD' ? 'Coverage or confidence below the evidence threshold — gather more evidence before deciding.' :
+    'A non-negotiable was violated: ' + (gate.reason_code||'critical safety hazard');
+
+  const signalCards = SIGNAL_TYPES.map(t=>{
+    const s = signals[t];
+    const val = s && s.scorable ? (s.polarity*s.strength) : null;
+    const cls = val===null?'':(val>0?'pos':val<0?'neg':'zero');
+    const conflict = s && s.conflict_level && s.conflict_level!=='NONE' ? `<span class="conflict-flag ${s.conflict_level}">${s.conflict_level} conflict</span>` : '';
+    const refs = s && s.evidence_refs && s.evidence_refs.length ? s.evidence_refs.map(r=>`<span class="ev-tag">Ev.${r}</span>`).join('') : '';
+    return `<div class="signal-card ${s&&s.scorable?'':'unscorable'}">
+      <div class="stitle"><span>${SIGNAL_LABELS[t]}${conflict}</span><span class="sval ${cls}">${s&&s.scorable ? (val>0?'+':'')+val : 'no evidence'}</span></div>
+      ${s&&s.scorable ? `<div class="sinterp">${escapeHtml(s.interpretation||'')}</div>${s.evidence_quote?`<div class="squote">“${escapeHtml(s.evidence_quote)}”</div>`:''}${refs?`<div style="margin-top:6px;">${refs}</div>`:''}${pctBar(s.confidence)}` : `<div class="sinterp">Not addressed in the supplied evidence.</div>`}
+    </div>`;
+  }).join('');
+
+  const dimRow = (label, key)=>{
+    const v = dna.dims[key];
+    const c = (dna.dimsConfidence||{})[key];
+    const thr = CONFIG.dna_thresholds[key];
+    const fail = v===null || v<thr;
+    return `<tr><td>${label} <span class="weight">(floor ${thr})</span></td><td style="color:${fail?'var(--rust)':'var(--moss)'}">${v===null?'N/A':v.toFixed(1)}</td><td>${c===null||c===undefined?'—':(c*100).toFixed(0)+'%'}</td></tr>`;
+  };
+
+  const commRow = (label, val, w)=>`<tr><td>${label} <span class="weight">(weight ${Math.round(w*100)}%)</span></td><td>${val.toFixed(1)}</td></tr>`;
+
+  return `
+    ${(hazard_flags.verified_injury||hazard_flags.manufacturer_hazard_warning||hazard_flags.structural_failure_hazard) ? `
+    <div class="flag">⚠ Hard safety trigger detected in evidence — this forces REJECT regardless of other scores.</div>` : ''}
+
+    ${cappedForSafety ? `
+    <div class="flag amber">⚠ Capped at TEST — the raw score qualified for SELECT, but animal/human safety evidence was incomplete or below floor, so this can't earn full SELECT confidence.</div>` : ''}
+
+    ${image_extractions && image_extractions.length ? `
+    <div class="panel">
+      <h2>Image text extraction</h2>
+      <div class="section-note">Literal transcription of packaging/label copy from each pasted or linked image — not analysis.</div>
+      <div class="signal-grid">
+        ${image_extractions.map(ie => `
+          <div class="signal-card">
+            <div class="stitle"><span>Image <span class="ev-tag">Ev.${ie.evidence_ref}</span></span></div>
+            <table class="score-table" style="margin-top:8px;">
+              <tr><td>Product name</td><td>${escapeHtml(ie.product_name||'—')}</td></tr>
+              <tr><td>Main tagline</td><td>${escapeHtml(ie.main_tagline||'—')}</td></tr>
+              <tr><td>Promotional / pricing text</td><td>${escapeHtml(ie.promotional_pricing_text||'—')}</td></tr>
+            </table>
+            ${ie.key_features && ie.key_features.length ? `
+              <div class="sinterp" style="margin-top:8px;font-weight:600;">Key features / benefits</div>
+              <ul style="margin:4px 0 0;padding-left:18px;font-size:12.5px;color:var(--ink-muted);line-height:1.6;">
+                ${ie.key_features.map(f=>`<li>${escapeHtml(f)}</li>`).join('')}
+              </ul>` : ''}
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <div class="panel">
+      <h2>2 · Signals extracted (12 / 12 checked)</h2>
+      <div class="section-note">Coverage ${va.coverage.toFixed(0)}% (${va.coverageStatus}) · aggregate confidence ${(va.confidence*100).toFixed(0)}%</div>
+      <div class="signal-grid">${signalCards}</div>
+    </div>
+
+    <div class="panel">
+      <h2>3 · Aino Selection Value (V<sub>A</sub>)</h2>
+      <table class="score-table">
+        <tr><td>V<sub>A</sub> score</td><td>${va.score===null?'N/A — no scorable signals':va.score.toFixed(1)}</td></tr>
+        <tr><td>Coverage</td><td>${va.coverage.toFixed(0)}% (${va.coverageStatus})</td></tr>
+        <tr><td>Confidence</td><td>${(va.confidence*100).toFixed(0)}%</td></tr>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>4 · Gate &amp; DNA</h2>
+      <div class="section-note">Gate status: <strong>${gate.gate_status}</strong>${gate.reason_code?' — '+escapeHtml(gate.reason_code):''}</div>
+      ${gate.gate_status==='HOLD' ? `<div class="flag amber" style="margin-top:8px;"><strong>HOLD means unresolved, not failed.</strong> Missing evidence is kept separate from a measured DNA failure.</div>` : ''}
+      ${gate.safetyUnverified ? `<div class="flag amber" style="margin-top:8px;"><strong>Safety watch:</strong> human and/or animal safety evidence is below its verification floor. This does not itself reject the product, but it can cap a SELECT outcome at TEST.</div>` : ''}
+      <table class="score-table">
+        <tr><td><strong>Dimension</strong></td><td><strong>Score</strong></td><td><strong>Confidence</strong></td></tr>
+        ${dimRow('Human safety','human_safety')}
+        ${dimRow('Animal safety','animal_safety')}
+        ${dimRow('Cleanliness','cleanliness')}
+        ${dimRow('Pet satisfaction','pet_satisfaction')}
+        ${dimRow('Human satisfaction','human_satisfaction')}
+        ${dimRow('Orderliness','orderliness')}
+        ${dimRow('Aesthetics','aesthetics')}
+        <tr><td>Overall DNA (A<sub>D</sub>)</td><td>${dna.overall===null?'N/A':dna.overall.toFixed(1)}</td><td>${dna.overallConfidence===null||dna.overallConfidence===undefined?'—':(dna.overallConfidence*100).toFixed(0)+'%'}</td></tr>
+      </table>
+      ${dna.partial ? '<div class="flag amber">DNA computed on partial signal coverage — treat as provisional.</div>' : ''}
+    </div>
+
+    <div class="panel">
+      <h2>5 · Commercial &amp; operational scoring</h2>
+      <div class="section-note">${escapeHtml(commercial_note||'')} These are supporting estimates, not verified market measurements. Use them to identify what to validate next.</div>
+      <table class="score-table">
+        ${commRow('Market demand', commercial.marketDemand, CONFIG.selection_weights.market_demand)}
+        ${commRow('Logistics', commercial.logistics, CONFIG.selection_weights.logistics)}
+        ${commRow('Return / sizing risk', commercial.returnSizing, CONFIG.selection_weights.return_sizing)}
+        ${commRow('Seasonality', commercial.seasonality, CONFIG.selection_weights.seasonality)}
+        ${commRow('Demonstrable value', commercial.demonstrableValue, CONFIG.selection_weights.demonstrable_value)}
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>6 · Selection score &amp; decision</h2>
+      ${gate.gate_status!=='PASS' ? `<div class="flag ${gate.gate_status==='HOLD'?'amber':''}" style="margin-bottom:14px;">${escapeHtml(gateNote)}</div>` : ''}
+      <table class="score-table">
+        ${commRow('Aino Selection Value (V<sub>A</sub>)', va.score===null?0:va.score, CONFIG.selection_weights.va)}
+        ${commRow('Market demand', commercial.marketDemand, CONFIG.selection_weights.market_demand)}
+        ${commRow('Logistics', commercial.logistics, CONFIG.selection_weights.logistics)}
+        ${commRow('Demonstrable value', commercial.demonstrableValue, CONFIG.selection_weights.demonstrable_value)}
+        ${commRow('Return / sizing', commercial.returnSizing, CONFIG.selection_weights.return_sizing)}
+        ${commRow('Seasonality', commercial.seasonality, CONFIG.selection_weights.seasonality)}
+        <tr><td>Selection Score (S)</td><td>${score.toFixed(1)}</td></tr>
+      </table>
+      <div class="section-note" style="margin-top:10px;">Config ${CONFIG.version} · score bands: SELECT ≥80, TEST ≥65, HOLD ≥50, else REJECT. Gate status remains a separate hard constraint and can override the score band.</div>
+    </div>
+  `;
+}
+
+/* ============================= FLOW ============================= */
+function blankProduct(){
+  return {
+    id: uid(), name:'', productUrl:'', collection:'', evidences:[{sourceType:'supplier_page', url:'', text:''}],
+    assessed:false, created_at:Date.now(), updated_at:Date.now(),
+    supplier_cost_eur: null, source_country:'', pricing: {scenarios:[]}
+  };
+}
+function migrateProduct(p){
+  if(!p.evidences){
+    p.evidences = [{sourceType:p.sourceType||'supplier_page', url:p.sourceUrl||'', text:p.rawText||''}];
+  }
+  if(p.supplier_cost_eur === undefined) p.supplier_cost_eur = null;
+  if(p.source_country === undefined) p.source_country = '';
+  // v1 prototype stored a single flat pricing object; V1.0 stores versioned scenarios.
+  // Any pre-existing prototype run is superseded (not migrated) — re-run to get a v1 scenario.
+  if(!p.pricing || !Array.isArray(p.pricing.scenarios)) p.pricing = {scenarios:[]};
+  p.pricing.scenarios = p.pricing.scenarios.map(migratePricingScenario);
+  return p;
+}
+// Backfills a scenario saved by an older code version with fields introduced later (recommendation
+// shape with reference_tier/basis/requires_validation, provisional flag, cost_responsibility, VAT
+// treatment) so old test runs render correctly instead of merely avoiding a crash on missing data.
+function migratePricingScenario(scenario){
+  if(!scenario || !Array.isArray(scenario.pricing_scenarios)) return scenario;
+  const needsRecompute = !scenario.recommendation || scenario.recommendation.status===undefined;
+  if(needsRecompute){
+    scenario.recommendation = computeRecommendation(scenario.pricing_scenarios, pricingBusinessConfig);
+  }
+  if(scenario.provisional === undefined){
+    scenario.provisional = (scenario.unknowns||[]).some(u=>u.includes('cost'));
+  }
+  if(scenario.cost_responsibility === undefined){
+    scenario.cost_responsibility = computeCostResponsibility(scenario.sourcing_model, scenario.commercial_arrangement);
+  }
+  if(scenario.vat_treatment === undefined){
+    scenario.vat_treatment = determineVatTreatment(scenario.sourcing_model, scenario.target_market);
+  }
+  if(scenario.recommendation_readiness === undefined){
+    scenario.recommendation_readiness = computeRecommendationReadiness(scenario.recommendation, scenario.provisional);
+  }
+  (scenario.pricing_scenarios||[]).forEach(t=>{ if(t.payment_cost===undefined) t.payment_cost = null; });
+  return scenario;
+}
+async function createNewProduct(){
+  // Guard against duplicate event handlers and double-clicks. A new assessment must be
+  // created exactly once per intentional click.
+  if(creatingProduct) return;
+  creatingProduct = true;
+  try {
+    const p = blankProduct();
+  state.currentId = p.id;
+  state.products.push(p);
+    renderSidebar();
+    renderConsole(p);
+  } finally {
+    creatingProduct = false;
+  }
+}
+async function openProduct(id){
+  let p = state.products.find(x=>x.id===id);
+  if(!p){ p = await loadProduct(id); if(p) state.products.push(p); }
+  migrateProduct(p);
+  state.currentId = id;
+  renderSidebar();
+  renderConsole(p);
+  attachResultHandlers(p);
+}
+function attachResultHandlers(p){
+  const exportBtn = document.getElementById('exportPdfBtn');
+  if(exportBtn){
+    exportBtn.addEventListener('click', ()=> exportToPdf(p));
+  }
+  const headerRunBtn = document.getElementById('runBtnHeader');
+  if(headerRunBtn){
+    headerRunBtn.addEventListener('click', ()=> runFullAssessment(p));
+  }
+  const del = document.getElementById('deleteBtn');
+  if(del){
+    del.addEventListener('click', async ()=>{
+      state.products = state.products.filter(x=>x.id!==p.id);
+      await apiStorage('delete', 'product:'+p.id).catch(()=>{});
+      await persistIndex();
+      state.currentId = null;
+      renderSidebar();
+      renderEmpty();
+    });
+  }
+}
+function exportToPdf(p){
+  const win = window.open('', '_blank');
+  if(!win){ alert('Your browser blocked the export window — please allow pop-ups for this site and try again.'); return; }
+  win.document.write(buildExportHtml(p));
+  win.document.close();
+  setTimeout(()=>{ win.focus(); win.print(); }, 300);
+}
+function exportSignalRow(t, s){
+  const val = s && s.scorable ? (s.polarity*s.strength) : null;
+  const valTxt = s && s.scorable ? ((val>0?'+':'')+val) : 'no evidence';
+  const conflict = s && s.conflict_level && s.conflict_level!=='NONE' ? ` (${s.conflict_level} conflict)` : '';
+  const interp = s && s.scorable ? escapeHtml(s.interpretation||'') : 'Not addressed in the supplied evidence.';
+  const quote = s && s.scorable && s.evidence_quote ? ` — "${escapeHtml(s.evidence_quote)}"` : '';
+  const refs = s && s.evidence_refs && s.evidence_refs.length ? ` [Ev.${s.evidence_refs.join(', Ev.')}]` : '';
+  const confTxt = s && s.scorable && typeof s.confidence === 'number' ? `${Math.round(s.confidence*100)}%` : '—';
+  return `<tr><td>${SIGNAL_LABELS[t]}</td><td>${valTxt}${conflict}</td><td>${confTxt}</td><td>${interp}${quote}${refs}</td></tr>`;
+}
+function buildExportHtml(p){
+  const { signals, va, dna, gate, decision, score, commercial, commercial_note, image_extractions } = p;
+  const genDate = new Date().toLocaleString();
+
+  const evidenceHtml = p.evidences.map((ev,i)=>{
+    const meta = SOURCE_TYPES.find(s=>s.v===ev.sourceType) || {l: ev.sourceType};
+    let body;
+    if(ev.sourceType === 'image'){
+      const img = ev.imageData
+        ? `<img src="${ev.imageData}" style="max-width:320px;display:block;margin:8px 0;border:1px solid #ccc;">`
+        : `<p style="color:#888;font-size:12px;">(pasted image not retained after the session — original was analysed live and is not stored)</p>`;
+      const urlLine = ev.url ? `<p style="font-size:12px;color:#555;">Source URL: ${escapeHtml(ev.url)}</p>` : '';
+      const caption = ev.text ? `<p style="font-size:12px;"><em>Caption/notes: ${escapeHtml(ev.text)}</em></p>` : '';
+      const extraction = (image_extractions||[]).find(ie => ie.evidence_ref === i+1);
+      const extractionHtml = extraction ? `
+        <table class="ex-table">
+          <tr><td>Product name</td><td>${escapeHtml(extraction.product_name||'—')}</td></tr>
+          <tr><td>Main tagline</td><td>${escapeHtml(extraction.main_tagline||'—')}</td></tr>
+          <tr><td>Promotional / pricing text</td><td>${escapeHtml(extraction.promotional_pricing_text||'—')}</td></tr>
+          ${extraction.key_features && extraction.key_features.length ? `<tr><td>Key features</td><td>${extraction.key_features.map(escapeHtml).join(', ')}</td></tr>` : ''}
+        </table>` : '';
+      body = img + urlLine + caption + extractionHtml;
+    } else {
+      body = `<pre>${escapeHtml(ev.text||'')}</pre>`;
+    }
+    return `<div class="ex-block"><h3>Evidence ${i+1} — ${escapeHtml(meta.l)}</h3>${body}</div>`;
+  }).join('');
+
+  const dimRowTxt = (label, key)=>{
+    const v = dna.dims[key];
+    const c = (dna.dimsConfidence||{})[key];
+    return `<tr><td>${label} (floor ${CONFIG.dna_thresholds[key]})</td><td>${v===null?'N/A':v.toFixed(1)}</td><td>${c===null||c===undefined?'—':(c*100).toFixed(0)+'%'}</td></tr>`;
+  };
+  const commRowTxt = (label, val, w)=>`<tr><td>${label} (weight ${Math.round(w*100)}%)</td><td>${val.toFixed(1)}</td></tr>`;
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${escapeHtml(p.name||'Untitled product')} — Aino Home assessment</title>
+<style>
+  body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;max-width:760px;margin:32px auto;padding:0 20px;line-height:1.5;}
+  h1{font-size:22px;margin-bottom:2px;}
+  h2{font-size:16px;border-bottom:1px solid #999;padding-bottom:4px;margin-top:28px;}
+  h3{font-size:13px;margin-bottom:4px;}
+  .meta{color:#555;font-size:12px;margin-bottom:18px;}
+  .decision{font-size:20px;font-weight:bold;margin:10px 0 4px;}
+  .reason{font-size:12.5px;color:#444;margin-bottom:6px;}
+  .gate-reason{font-size:13px;color:#a02;margin-bottom:10px;line-height:1.5;}
+  .gate-reason div{margin-left:2px;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px;}
+  td{padding:5px 4px;border-bottom:1px solid #ddd;vertical-align:top;}
+  td:first-child{width:32%;color:#444;}
+  .ex-table td:first-child{width:40%;}
+  .sig-table td:first-child{width:16%;}
+  .sig-table td:nth-child(2){width:14%;}
+  .sig-table td:nth-child(3){width:12%;}
+  .ex-block{page-break-inside:avoid;margin-bottom:14px;border-bottom:1px solid #eee;padding-bottom:10px;}
+  pre{white-space:pre-wrap;font-family:inherit;font-size:12.5px;background:#f7f7f5;padding:8px 10px;border-radius:3px;}
+  .footnote{margin-top:30px;font-size:10.5px;color:#888;}
+  @media print{ a{color:inherit;text-decoration:none;} }
+</style></head>
+<body>
+  <h1>${escapeHtml(p.name||'Untitled product')}</h1>
+  <div class="meta">Aino Home Selection Console · generated ${genDate} · ${p.evidences.length} evidence source${p.evidences.length>1?'s':''}</div>
+  ${p.productUrl ? `<div class="meta">Source: <a href="${escapeHtml(p.productUrl)}">${escapeHtml(p.productUrl)}</a></div>` : ''}
+
+  <div class="decision">${decision} — ${score.toFixed(1)} / 100</div>
+  ${gate.gate_status==='PASS' ? `<div class="reason">${gate.safetyUnverified ? 'Gate passed, but animal/human safety evidence was incomplete or below floor — verify before committing.' : 'All gate checks passed.'}</div>` : (()=>{
+    const reasons = (gate.reason_code||'critical safety hazard').split(',').map(s=>s.trim()).filter(Boolean);
+    return `<div class="gate-reason"><strong>${escapeHtml(gate.gate_status)} —</strong>${reasons.map((r,i)=>`<div>${escapeHtml(r)}${i<reasons.length-1?',':''}</div>`).join('')}</div>`;
+  })()}
+  ${gate.safetyUnverified && decision==='TEST' && score >= CONFIG.decision_thresholds.select ? `<div class="reason" style="color:#a06000;font-weight:bold;">Capped at TEST — the raw score qualified for SELECT, but animal/human safety evidence was incomplete or below floor.</div>` : ''}
+
+  ${(()=>{
+    const latestScenario = p.pricing && Array.isArray(p.pricing.scenarios) && p.pricing.scenarios.length ? p.pricing.scenarios[p.pricing.scenarios.length-1] : null;
+    const pricingDecision = latestScenario ? computeCommercialDecision(p, latestScenario, pricingBusinessConfig) : null;
+    const pricingLabel = !latestScenario ? 'NOT RUN' : pricingDecision ? pricingDecision.status : 'REVIEW';
+    const actions=[];
+    if(gate.reason_code && gate.reason_code.includes('ORDERLINESS_NO_EVIDENCE')) actions.push('Add evidence for organisation and space efficiency.');
+    if(gate.safetyUnverified) actions.push('Verify safety / retention and fit before committing.');
+    if(dna.partial && !actions.some(a=>a.includes('organisation'))) actions.push('Complete the missing DNA evidence, then re-run.');
+    if(latestScenario && pricingDecision && pricingDecision.status==='NOT_SUPPORTED') actions.push('Test a lower-cost sourcing or transaction scenario.');
+    if(!actions.length) actions.push('Proceed to the next validation step.');
+    return `<h2>Decision at a glance</h2>
+    <table>
+      <tr><td>Product decision</td><td><strong>${escapeHtml(decision)}</strong> — ${escapeHtml(gate.gate_status==='HOLD'?'promising, but not ready to select.':gate.gate_status==='PASS'?'Gate cleared.':'a hard Gate condition failed.')}</td></tr>
+      <tr><td>Economics decision</td><td><strong>${escapeHtml(pricingLabel)}</strong>${latestScenario ? ` — ${escapeHtml(latestScenario.sourcing_model.replace('_',' '))} → ${escapeHtml(latestScenario.target_market)}` : ' — no pricing scenario has been analysed.'}</td></tr>
+      <tr><td>Next actions</td><td>${actions.map(a=>escapeHtml(a)).join('<br>')}</td></tr>
+    </table>`;
+  })()}
+
+  <h2>Executive summary</h2>
+  <table>
+    <tr><td>V_A score</td><td>${va.score===null?'N/A':va.score.toFixed(1)}</td></tr>
+    <tr><td>Confidence</td><td>${(va.confidence*100).toFixed(0)}%</td></tr>
+    <tr><td>Overall DNA</td><td>${dna.overall===null?'N/A':dna.overall.toFixed(1)}${dna.partial?' · provisional':''}</td></tr>
+    <tr><td>Selection Score</td><td>${score.toFixed(1)}</td></tr>
+  </table>
+
+  <h2>Evidence sources (as submitted)</h2>
+  ${evidenceHtml}
+
+  <h2>Signals extracted (12/12 checked)</h2>
+  <div class="meta">Coverage ${va.coverage.toFixed(0)}% (${va.coverageStatus}) · aggregate confidence ${(va.confidence*100).toFixed(0)}%</div>
+  <table class="sig-table"><tr><td><strong>Signal</strong></td><td><strong>Value</strong></td><td><strong>Confidence</strong></td><td><strong>Interpretation</strong></td></tr>${SIGNAL_TYPES.map(t=>exportSignalRow(t, signals[t])).join('')}</table>
+
+  <h2>Gate &amp; DNA</h2>
+  <div class="meta">Gate status: ${gate.gate_status}${gate.reason_code?' — '+escapeHtml(gate.reason_code):''}</div>
+  <table>
+    <tr><td><strong>Dimension</strong></td><td><strong>Score</strong></td><td><strong>Confidence</strong></td></tr>
+    ${dimRowTxt('Human safety','human_safety')}
+    ${dimRowTxt('Animal safety','animal_safety')}
+    ${dimRowTxt('Cleanliness','cleanliness')}
+    ${dimRowTxt('Pet satisfaction','pet_satisfaction')}
+    ${dimRowTxt('Human satisfaction','human_satisfaction')}
+    ${dimRowTxt('Orderliness','orderliness')}
+    ${dimRowTxt('Aesthetics','aesthetics')}
+    <tr><td>Overall DNA</td><td>${dna.overall===null?'N/A':dna.overall.toFixed(1)}</td><td>${dna.overallConfidence===null||dna.overallConfidence===undefined?'—':(dna.overallConfidence*100).toFixed(0)+'%'}</td></tr>
+  </table>
+
+  <h2>Commercial &amp; operational scoring</h2>
+  <div class="meta">${escapeHtml(commercial_note||'')} These are supporting estimates, not verified market measurements. Use them to identify what to validate next.</div>
+  <table>
+    ${commRowTxt('Market demand', commercial.marketDemand, CONFIG.selection_weights.market_demand)}
+    ${commRowTxt('Logistics', commercial.logistics, CONFIG.selection_weights.logistics)}
+    ${commRowTxt('Return / sizing risk', commercial.returnSizing, CONFIG.selection_weights.return_sizing)}
+    ${commRowTxt('Seasonality', commercial.seasonality, CONFIG.selection_weights.seasonality)}
+    ${commRowTxt('Demonstrable value', commercial.demonstrableValue, CONFIG.selection_weights.demonstrable_value)}
+  </table>
+
+  <h2>Selection score breakdown</h2>
+  ${gate.gate_status!=='PASS' ? `<div class="reason" style="font-weight:bold;">${gate.gate_status}: ${escapeHtml(gate.reason_code||'critical safety hazard')}</div>` : ''}
+  <table>
+    ${commRowTxt('Aino Selection Value (V_A)', va.score===null?0:va.score, CONFIG.selection_weights.va)}
+    ${commRowTxt('Market demand', commercial.marketDemand, CONFIG.selection_weights.market_demand)}
+    ${commRowTxt('Logistics', commercial.logistics, CONFIG.selection_weights.logistics)}
+    ${commRowTxt('Demonstrable value', commercial.demonstrableValue, CONFIG.selection_weights.demonstrable_value)}
+    ${commRowTxt('Return / sizing', commercial.returnSizing, CONFIG.selection_weights.return_sizing)}
+    ${commRowTxt('Seasonality', commercial.seasonality, CONFIG.selection_weights.seasonality)}
+    <tr><td>Selection Score (S)</td><td>${score.toFixed(1)}</td></tr>
+  </table>
+
+  <div class="footnote">Config ${CONFIG.version} · thresholds: SELECT ≥80, TEST ≥65, HOLD ≥50, else REJECT. A Gate HOLD/REJECT always overrides the score band.</div>
+
+  ${(p.pricing && p.pricing.scenarios && p.pricing.scenarios.length) ? (()=>{
+    const sc = p.pricing.scenarios[p.pricing.scenarios.length-1];
+    const rec = sc.recommendation;
+    const d = computeCommercialDecision(p, sc, pricingBusinessConfig);
+    const costRows = (PRICING_APPLICABLE_KEYS[sc.sourcing_model]||[]).map(k=>{
+      const c = sc.cost[k];
+      return `<tr><td>${PRICING_COST_LABELS[k]}</td><td>${c.amount===null?'—':'€'+c.amount.toFixed(2)}</td><td>${c.status}</td></tr>`;
+    }).join('');
+    const tierRows = sc.pricing_scenarios.map(t=>`<tr><td>${t.name}</td><td>${t.selling_price!==null?'€'+t.selling_price.toFixed(2):'—'}</td><td>${t.contribution_margin_pct!==null?t.contribution_margin_pct+'%':'—'}</td><td>${t.status}</td></tr>`).join('');
+    return `
+  <h2>Pricing analysis (internal) — v${sc.version}</h2>
+  <div class="meta">${sc.sourcing_model.replace('_',' ')} → ${escapeHtml(sc.target_market)} · ${sc.commercial_arrangement} · Source: ${escapeHtml(p.source_country||'unspecified')} · Confidence ${sc.confidence}%</div>
+  <table>
+    <tr><td><strong>Cost item</strong></td><td><strong>Amount</strong></td><td><strong>Status</strong></td></tr>
+    ${costRows}
+    <tr><td>Total variable cost</td><td>€${sc.total_variable_cost.toFixed(2)}</td><td>—</td></tr>
+  </table>
+  <table style="margin-top:8px;">
+    <tr><td><strong>Scenario</strong></td><td><strong>Price</strong></td><td><strong>Margin</strong></td><td><strong>Status</strong></td></tr>
+    ${tierRows}
+  </table>
+  <div class="meta" style="margin-top:6px;">${rec.status==='SUPPORTED' ? `Reference range €${rec.min_price.toFixed(2)} – €${rec.max_price.toFixed(2)}, reference €${rec.reference_price.toFixed(2)} (${rec.reference_tier}).` : `NOT CURRENTLY SUPPORTED — no tier meets the margin target.${rec.best_available?` Best available: ${rec.best_available.tier} at €${rec.best_available.price.toFixed(2)}, ${rec.best_available.contribution_margin_pct}% margin (gap ${rec.best_available.gap_pct>0?'+':''}${rec.best_available.gap_pct}pp).`:''}`}</div>
+  ${d ? `<div class="meta" style="font-weight:bold;margin-top:6px;">Commercial decision: ${d.status} — ${escapeHtml(d.rationale)}</div>` : ''}
+  ${sc.unknowns.length ? `<div class="meta" style="margin-top:6px;">Unknowns: ${sc.unknowns.map(u=>escapeHtml(u)).join('; ')}</div>` : ''}
+    `;
+  })() : ''}
+</body></html>`;
+}
+async function persistIndex(){
+  const idx = state.products.map(p=>({id:p.id, name:p.name, score:p.score, decision:p.decision, updated_at:p.updated_at}));
+  await saveIndex(idx);
+}
+
+async function runFullAssessment(p){
+  if(inflight) return;
+  // One user action runs both engines. Product Selection and Pricing remain independent
+  // internally, but the selected transaction scenario is evaluated in the same assessment run.
+  const selectionOk = await runAssessment(p);
+  if(!selectionOk) return;
+  await runPricingAnalysis(p);
+}
+
+async function runAssessment(p){
+  if(inflight) return;
+  syncEvidencesFromDOM(p);
+  p.evidences.forEach(e=> e.error = null);
+  const errBox = document.getElementById('errBox');
+  errBox.innerHTML='';
+  const hasContent = p.evidences.some(ev => (ev.text&&ev.text.trim()) || (ev.url&&ev.url.trim()) || ev.imageData);
+  if(!hasContent){
+    errBox.innerHTML = `<div class="error-box">Add at least one evidence source (pasted text or a URL) before running the assessment.</div>`;
+    return false;
+  }
+  inflight = true;
+  renderConsole(p);
+  try{
+    const content = buildMessageContent(p.evidences);
+    const result = await callClaude(content);
+
+    p.name = (p.name && p.name.trim()) ? p.name.trim() : ((result.product && result.product.name) || 'Untitled product');
+    p.product = result.product;
+    p.signals = result.signals;
+    p.hazard_flags = result.hazard_flags || {};
+    p.commercial_estimates = result.commercial_estimates || {};
+    p.commercial_note = result.commercial_note || '';
+    p.image_extractions = result.image_extractions || [];
+
+    p.va = computeVA(p.signals);
+    p.dna = computeDNA(p.signals);
+    p.gate = computeGate(p.signals, p.va, p.dna, p.hazard_flags);
+    p.commercial = computeCommercial(p.commercial_estimates);
+    p.score = computeSelectionScore(p.va, p.commercial);
+    p.decision = decisionFromScore(p.score, p.gate);
+    p.assessed = true;
+    p.updated_at = Date.now();
+
+    await saveProduct(p);
+    await persistIndex();
+    inflight = false;
+    renderSidebar();
+    renderConsole(p);
+    attachResultHandlers(p);
+    return true;
+  }catch(e){
+    inflight = false;
+    const msg = e.message || String(e);
+    await diagnoseAndFlagEvidence(p, msg);
+    renderConsole(p);
+    if(p.assessed) attachResultHandlers(p);
+    document.getElementById('errBox').innerHTML = buildErrorBanner(msg, p);
+    return false;
+  }finally{
+    inflight = false;
+  }
+}
+
+function renderEmpty(){
+  document.getElementById('wrap').innerHTML = `
+    <div class="empty-state">
+      <div class="icon">◆</div>
+      <h2 class="serif">No product open</h2>
+      <div>Start a new assessment or pick one from the queue on the left.</div>
+    </div>`;
+}
+
+/* ============================= INIT ============================= */
+async function init(){
+  if(initialized) return;
+  initialized = true;
+  // The New Assessment button is bound via .onclick in renderConsole(). Do not add
+  // another listener here, or each click will create a second assessment.
+  loadPricingConfig().then(()=>{
+    if(state.currentId){
+      const p = state.products.find(x=>x.id===state.currentId);
+      if(p) renderConsole(p);
+    }
+  });
+  const idx = await loadIndex();
+  if(idx.length){
+    for(const item of idx){
+      const p = await loadProduct(item.id);
+      if(p) state.products.push(migrateProduct(p));
+    }
+  }
+  renderSidebar();
+  if(state.products.length){
+    openProduct(state.products.slice().sort((a,b)=>b.updated_at-a.updated_at)[0].id);
+  } else {
+    createNewProduct();
+  }
+}
+
+</script>
+</body>
+</html>
