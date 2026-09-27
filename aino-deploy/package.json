@@ -1,0 +1,9 @@
+{
+  "name": "aino-console",
+  "version": "3.2.2",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@upstash/redis": "^1.0.0"
+  }
+}
